@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prefire</title>
+<meta name="description" content="Prefire: Predicting British Columbia wildfire risk to protect wildlife habitats. An AI-powered web tool using Decision Tree classification.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: full-bleed map with one frosted-glass control panel floating on the left (a bottom sheet on phones).
+   Content pages follow a product-page rhythm: big centred headline, then white rounded tiles on soft grey. */
+:root {
+  --bg: #F5F5F7;
+  --surface: #FFFFFF;
+  --cell: #FFFFFF;
+  --glass: rgba(246, 246, 248, 0.8);
+  --glass-bar: rgba(251, 251, 253, 0.8);
+  --glass-edge: rgba(255, 255, 255, 0.6);
+  --ink: #1D1D1F;
+  --ink-2: #6E6E73;
+  --ink-3: #AEAEB2;
+  --hair: rgba(60, 60, 67, 0.16);
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-strong: rgba(120, 120, 128, 0.2);
+  --seg-on: #FFFFFF;
+  --accent: #0071E3;
+  --accent-soft: rgba(0, 113, 227, 0.1);
+  --fire: #F56300;
+  --red-ink: #D70015;
+  --red-soft: rgba(255, 59, 48, 0.12);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+  --header-h: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --surface: #1C1C1E;
+    --cell: #2C2C2E;
+    --glass: rgba(28, 28, 30, 0.78);
+    --glass-bar: rgba(22, 22, 23, 0.8);
+    --glass-edge: rgba(255, 255, 255, 0.08);
+    --ink: #F5F5F7;
+    --ink-2: #98989D;
+    --ink-3: #636366;
+    --hair: rgba(84, 84, 88, 0.6);
+    --fill: rgba(118, 118, 128, 0.24);
+    --fill-strong: rgba(120, 120, 128, 0.36);
+    --seg-on: #636366;
+    --accent: #2997FF;
+    --accent-soft: rgba(41, 151, 255, 0.18);
+    --fire: #FF8A3D;
+    --red-ink: #FF6961;
+    --red-soft: rgba(255, 69, 58, 0.2);
+    --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.47 var(--font);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  border: 0.5px solid var(--glass-edge);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Header ---------- */
+.header {
+  flex: none;
+  position: relative;
+  z-index: 1100;
+  height: var(--header-h);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  background: var(--glass-bar);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--hair);
+}
+.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: -0.02em; justify-self: start; }
+.brand:hover { text-decoration: none; }
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--fill);
+}
+.seg a {
+  min-width: 76px;
+  text-align: center;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.seg a:hover { text-decoration: none; }
+.seg a[aria-current="page"] { background: var(--seg-on); box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.04); font-weight: 600; }
+.header-meta { justify-self: end; font-size: 12px; color: var(--ink-2); }
+
+main { flex: 1; min-height: 0; overflow: auto; }
+.view[hidden] { display: none !important; }
+
+/* ---------- Map view ---------- */
+.map-view { position: relative; height: 100%; }
+#map { position: absolute; inset: 0; z-index: 0; background: var(--bg); }
+.rail {
+  position: absolute;
+  z-index: 10;
+  top: 14px;
+  left: max(14px, env(safe-area-inset-left, 0px));
+  bottom: 14px;
+  width: 372px;
+  border-radius: 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  scrollbar-width: thin;
+}
+.grabber { display: none; }
+.rail-head { display: grid; gap: 4px; padding: 0 4px; }
+.rail-head h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+.rail-head .lead { color: var(--ink-2); }
+.note { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 6px; align-items: flex-start; margin-top: 6px; }
+.note svg { flex: none; margin-top: 2px; }
+
+.sec { display: grid; gap: 8px; }
+.sec-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; padding: 0 4px; }
+.sec-foot { font-size: 12.5px; color: var(--ink-2); padding: 0 6px; }
+
+/* Map style picker */
+.styles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+.styles input { position: absolute; opacity: 0; pointer-events: none; }
+.styles label { display: grid; gap: 6px; cursor: pointer; text-align: center; font-size: 12px; font-weight: 500; color: var(--ink); }
+.thumb {
+  display: block;
+  aspect-ratio: 4 / 3;
+  max-width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #2C2C2E;
+  box-shadow: 0 0 0 0.5px var(--hair), 0 2px 6px rgba(0,0,0,0.08);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.styles label:hover .thumb { transform: translateY(-1px); }
+.styles input:checked + label .thumb { box-shadow: 0 0 0 2.5px var(--accent), 0 4px 12px rgba(0,0,0,0.12); }
+.styles input:checked + label { color: var(--accent); font-weight: 600; }
+.styles input:focus-visible + label .thumb { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* Inset grouped list (like Settings) */
+.list { background: var(--cell); border-radius: 14px; overflow: hidden; }
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 14px;
+}
+label.row { cursor: pointer; }
+.row + .row::before { content: ""; position: absolute; top: 0; left: 54px; right: 0; height: 0.5px; background: var(--hair); }
+.row-label { flex: 1; min-width: 0; }
+.row-label small { display: block; color: var(--ink-2); font-size: 12px; line-height: 1.3; }
+.row-value { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.icon { flex: none; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: #fff; }
+.icon svg { width: 17px; height: 17px; }
+.i-orange { background: #FF9500; } .i-red { background: #FF3B30; } .i-blue { background: #007AFF; }
+.i-green { background: #34C759; } .i-gray { background: #8E8E93; } .i-indigo { background: #5856D6; }
+.i-teal { background: #30B0C7; } .i-cyan { background: #32ADE6; } .i-pink { background: #FF2D55; }
+
+.row-slider { display: grid; grid-template-columns: 28px 1fr auto; column-gap: 12px; row-gap: 4px; align-items: center; }
+.row-slider input { grid-column: 2 / 4; }
+
+.switch {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--fill-strong);
+  cursor: pointer;
+  transition: background 0.25s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.16);
+  transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.switch:checked { background: #34C759; }
+.switch:checked::after { transform: translateX(20px); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 10px 0;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--p, 50%), var(--fill-strong) var(--p, 50%));
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff;
+  border: 0.5px solid rgba(0,0,0,0.04);
+  box-shadow: 0 0.5px 4px rgba(0,0,0,0.12), 0 6px 13px rgba(0,0,0,0.12);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; border: 0;
+  box-shadow: 0 0.5px 4px rgba(0,0,0,0.12), 0 6px 13px rgba(0,0,0,0.12);
+}
+input[type="date"] {
+  font: inherit;
+  color: var(--accent);
+  background: var(--fill);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+
+/* Scenario chips */
+.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips label {
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cell);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s;
+}
+.chips label small { font-weight: 400; font-size: 12px; color: var(--ink-2); }
+.chips input:checked + label { background: var(--accent); color: #fff; }
+.chips input:checked + label small { color: rgba(255,255,255,0.8); }
+.chips input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Prediction summary */
+.pad { padding: 16px; display: grid; gap: 14px; }
+.big-stat { display: grid; gap: 2px; }
+.big-stat b { font-family: var(--font-display); font-size: 44px; line-height: 1; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.big-stat span { color: var(--ink-2); }
+.stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--fill); gap: 2px; }
+.stack span { display: block; height: 100%; border-radius: 2px; transition: flex-basis 0.4s ease; }
+.class-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.class-list li { display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; align-items: baseline; }
+.class-list .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; }
+.class-list .cl-name { font-weight: 600; }
+.class-list .cl-val { grid-column: 2; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Selected area */
+.cell-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.cell-place { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cell-sub { color: var(--ink-2); font-size: 13px; }
+.pill { flex: none; display: inline-block; padding: 4px 12px; border-radius: 99px; font-weight: 600; font-size: 13px; color: #fff; }
+.pill.dark-text { color: #1D1D1F; }
+.metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.metric { background: var(--bg); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; }
+.metric span { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.metric b { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.metric b small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 3px; letter-spacing: 0; }
+.path-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.path { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.path li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13.5px; }
+.path .ans { flex: none; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.path .yes { background: var(--accent-soft); color: var(--accent); }
+.path .no { background: var(--fill); color: var(--ink-2); }
+.text-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 500; justify-self: start; }
+.text-btn:hover { text-decoration: underline; }
+.empty { color: var(--ink-2); }
+
+/* Wildlife + people */
+.skel { display: grid; gap: 10px; }
+.skel span { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--fill) 25%, var(--fill-strong) 50%, var(--fill) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite linear; }
+.skel span:nth-child(2) { width: 80%; }
+.skel span:nth-child(3) { width: 55%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.sub-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.sp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.sp { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.sp .ph { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; background: var(--fill); display: grid; place-items: center; color: #fff; }
+.sp .ph svg { width: 22px; height: 22px; }
+.sp-name { font-weight: 600; line-height: 1.25; }
+.sp-name a { color: var(--ink); }
+.sp-meta { font-size: 12.5px; color: var(--ink-2); line-height: 1.3; }
+.sp-num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sp-num small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-2); }
+.status { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; margin-top: 3px; background: var(--fill); color: var(--ink-2); }
+.status.red { background: var(--red-soft); color: var(--red-ink); }
+.status.blue { background: var(--accent-soft); color: var(--accent); }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-chips span { font-size: 12.5px; padding: 4px 10px; border-radius: 99px; background: var(--fill); }
+.divider { height: 0.5px; background: var(--hair); }
+.seg-sm { display: flex; padding: 2px; border-radius: 8px; background: var(--fill); }
+.seg-sm button { flex: 1; border: 0; background: none; padding: 4px 8px; border-radius: 6px; font-size: 12.5px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.seg-sm button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 2px 6px rgba(0,0,0,0.12); font-weight: 600; }
+.people-main { display: grid; gap: 0; }
+.people-main .cap { font-weight: 600; }
+.people-main b { font-family: var(--font-display); font-size: 40px; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.people-main span:last-child { color: var(--ink-2); }
+.mini-row { display: flex; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 0.5px solid var(--hair); }
+.mini-row span { color: var(--ink-2); }
+.mini-row b { font-variant-numeric: tabular-nums; }
+
+/* Leaflet */
+.leaflet-container { font-family: var(--font); background: var(--bg); }
+.leaflet-top.leaflet-right { top: 6px; right: max(6px, env(safe-area-inset-right, 0px)); }
+.leaflet-bar { border: 0 !important; border-radius: 12px !important; overflow: hidden; box-shadow: var(--shadow) !important; }
+.leaflet-bar a, .leaflet-bar a:hover {
+  width: 40px !important; height: 40px !important; line-height: 40px !important;
+  background: var(--glass) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  color: var(--ink) !important;
+  border-bottom: 0.5px solid var(--hair) !important;
+  font-weight: 400;
+}
+.leaflet-bar a:last-child { border-bottom: 0 !important; }
+.leaflet-control-attribution { background: var(--glass) !important; color: var(--ink-2) !important; border-radius: 8px 0 0 0; font-size: 10.5px; }
+.leaflet-control-attribution a { color: var(--ink-2) !important; }
+.legend { border-radius: 16px; padding: 12px 14px; display: grid; gap: 6px; font-size: 12.5px; color: var(--ink); min-width: 150px; margin-bottom: 26px !important; }
+.legend b { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.legend b:not(:first-child) { margin-top: 6px; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend .ramp { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #2b3a9b, #3fb6c7, #f3e14a, #e8462c, #7a0d12); }
+.legend .ramp-labels { display: flex; justify-content: space-between; color: var(--ink-2); font-size: 11.5px; }
+
+/* ---------- Content pages ---------- */
+.page {
+  padding-block: clamp(48px, 8vw, 96px) 96px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: clamp(56px, 8vw, 96px); }
+.hero { display: grid; gap: 16px; justify-items: center; text-align: center; }
+.eyebrow { color: var(--fire); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.04; }
+.hero .sub { font-size: clamp(19px, 2.3vw, 24px); line-height: 1.35; color: var(--ink-2); max-width: 34ch; letter-spacing: -0.015em; }
+.hero p.body { font-size: 17px; color: var(--ink-2); max-width: 62ch; }
+.fire-text { background: linear-gradient(95deg, #FFB340 0%, #FF6A00 45%, #E3122C 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.block { display: grid; gap: 24px; }
+.block-head { display: grid; gap: 8px; max-width: 60ch; }
+.block-head h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; }
+.block-head p { font-size: 17px; color: var(--ink-2); }
+.tiles { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.tiles.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.tile { background: var(--surface); border-radius: 28px; padding: clamp(24px, 3.5vw, 36px); display: grid; gap: 10px; align-content: start; min-width: 0; }
+.tile h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.tile p { color: var(--ink-2); font-size: 16px; }
+.tile .unit { font-size: 14px; font-weight: 600; color: var(--ink); }
+.tile .src { font-size: 13px; color: var(--ink-2); padding-top: 10px; border-top: 0.5px solid var(--hair); margin-top: 4px; }
+.tile .icon { width: 44px; height: 44px; border-radius: 12px; }
+.tile .icon svg { width: 24px; height: 24px; }
+.kpi { font-family: var(--font-display); font-size: 48px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--ink-3); }
+.kpi.set { color: var(--ink); }
+.kpi-label { font-weight: 600; font-size: 17px; color: var(--ink) !important; }
+.tag { justify-self: start; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--fill); color: var(--ink-2); }
+
+.tree-tile { padding: 20px; gap: 14px; }
+.tree-scroll { overflow-x: auto; }
+#tree { display: block; width: 100%; min-width: 900px; height: auto; }
+#tree .edge { stroke: var(--ink-3); stroke-width: 1.5; fill: none; }
+#tree .edge.on { stroke: var(--accent); stroke-width: 3.5; }
+#tree .node rect { fill: var(--bg); }
+#tree .node.on rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+#tree text { fill: var(--ink); font-family: var(--font); font-size: 13px; font-weight: 600; }
+#tree .q2 { fill: var(--ink-2); font-weight: 500; font-size: 12.5px; }
+#tree .edge-label { fill: var(--ink-2); font-size: 11px; font-weight: 500; }
+#tree .leaf text { fill: #fff; }
+#tree .leaf.dark-text text { fill: #1D1D1F; }
+#tree .leaf.on rect { stroke: var(--accent); stroke-width: 3.5; }
+.tree-caption { color: var(--ink-2); font-size: 14px; padding: 0 4px; }
+
+.stat-tile { text-align: center; justify-items: center; padding-block: clamp(40px, 6vw, 64px); }
+.mega { font-family: var(--font-display); font-size: clamp(56px, 11vw, 128px); font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+.stat-tile p { font-size: clamp(17px, 2vw, 21px); max-width: 40ch; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); counter-reset: s; }
+.steps li { counter-increment: s; background: var(--surface); border-radius: 22px; padding: 22px; display: grid; gap: 6px; align-content: start; }
+.steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.steps b { font-family: var(--font-display); font-size: 19px; letter-spacing: -0.02em; }
+.steps span { color: var(--ink-2); }
+
+.links { background: var(--surface); border-radius: 22px; overflow: hidden; }
+.links a { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; color: var(--ink); }
+.links a:hover { text-decoration: none; background: var(--fill); }
+.links a + a::before { content: ""; position: absolute; top: 0; left: 20px; right: 0; height: 0.5px; background: var(--hair); }
+.links a span small { display: block; color: var(--ink-2); font-size: 13.5px; }
+.links .chev { color: var(--ink-3); flex: none; }
+.credit { color: var(--ink-2); font-size: 12px; text-align: center; }
+
+/* ---------- Phone ---------- */
+@media (max-width: 820px) {
+  .header { grid-template-columns: auto 1fr; }
+  .header .seg { justify-self: end; }
+  .seg a { min-width: 0; padding: 5px 12px; }
+  .header-meta { display: none; }
+  .map-view { height: auto; }
+  #map { position: relative; height: 58vh; }
+  .rail {
+    position: relative;
+    inset: auto;
+    width: auto;
+    margin-top: -24px;
+    border-radius: 22px 22px 0 0;
+    overflow: visible;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-top: 10px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.12);
+  }
+  .grabber { display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--ink-3); margin: 0 auto -8px; opacity: 0.6; }
+  .legend { margin-bottom: 34px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="brand" href="#map" aria-label="Prefire home">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <defs><linearGradient id="flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB340"/><stop offset="0.55" stop-color="#FF6A00"/><stop offset="1" stop-color="#E3122C"/></linearGradient></defs>
+      <path d="M12 1.5c1.2 4.6 7.5 6.6 7.5 13.2a7.5 7.5 0 0 1-15 0c0-3.6 2-5.6 3.6-7 .4 2.4 1.6 3.1 2.3 2.5 1.4-1.3.4-5 1.6-8.7z" fill="url(#flame)"/>
+    </svg>
+    Prefire
+  </a>
+  <nav class="seg" aria-label="Main">
+    <a href="#map" data-view="map">Map</a>
+    <a href="#model" data-view="model">Model</a>
+    <a href="#about" data-view="about">About</a>
+  </nav>
+  <span class="header-meta">BC wildfire risk · Decision Tree</span>
+</header>
+
+<main>
+  <!-- ================= MAP ================= -->
+  <section class="view map-view" id="view-map">
+    <div id="map" role="region" aria-label="Map of British Columbia"></div>
+
+    <aside class="rail glass" aria-label="Map controls">
+      <div class="grabber" aria-hidden="true"></div>
+      <header class="rail-head">
+        <h1>British Columbia</h1>
+        <p class="lead">Predicted wildfire risk from weather conditions.</p>
+        <p class="note">
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span>Sketch version. Risk uses simulated weather and a placeholder Decision Tree until the trained model is connected.</span>
+        </p>
+      </header>
+
+      <section class="sec">
+        <h2 class="sec-title">Map style</h2>
+        <div class="styles" role="radiogroup" aria-label="Map style">
+          <input type="radio" name="base" id="base-satellite" value="satellite" checked>
+          <label for="base-satellite"><span class="thumb"><img alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/5/10/5"></span>Satellite</label>
+          <input type="radio" name="base" id="base-street" value="street">
+          <label for="base-street"><span class="thumb"><img alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/5/10/5"></span>Street</label>
+          <input type="radio" name="base" id="base-topo" value="topo">
+          <label for="base-topo"><span class="thumb"><img alt="" src="https://a.tile.opentopomap.org/5/5/10.png"></span>Topographic</label>
+          <input type="radio" name="base" id="base-thermal" value="thermal">
+          <label for="base-thermal"><span class="thumb"><img alt="" id="thumb-thermal" src="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/2023-08-18/GoogleMapsCompatible_Level7/5/10/5.png"></span>Thermal</label>
+          <input type="radio" name="base" id="base-true" value="truecolor">
+          <label for="base-true"><span class="thumb"><img alt="" id="thumb-true" src="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-08-18/GoogleMapsCompatible_Level9/5/10/5.jpg"></span>Smoke (daily)</label>
+          <input type="radio" name="base" id="base-relief" value="relief">
+          <label for="base-relief"><span class="thumb"><img alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/5/10/5"></span>Relief</label>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">Layers</h2>
+        <div class="list">
+          <label class="row" for="ov-risk">
+            <span class="icon i-orange"><svg viewBox="0 0 24 24"><path d="M12 2.5c1 4 6.5 5.6 6.5 11.4a6.5 6.5 0 0 1-13 0c0-3.1 1.8-4.9 3.1-6 .4 2 1.4 2.7 2 2.1 1.2-1.1.4-4.3 1.4-7.5z" fill="#fff"/></svg></span>
+            <span class="row-label">Wildfire risk<small>Decision Tree prediction</small></span>
+            <input type="checkbox" class="switch" id="ov-risk" checked>
+          </label>
+          <div class="row row-slider">
+            <span class="icon i-gray"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#fff" stroke-width="2"/><path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="#fff"/></svg></span>
+            <label for="risk-opacity" class="row-label">Opacity</label>
+            <output id="risk-opacity-out" class="row-value" for="risk-opacity">60%</output>
+            <input type="range" id="risk-opacity" min="10" max="100" value="60">
+          </div>
+          <label class="row" for="ov-fires">
+            <span class="icon i-red"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="#fff"/><circle cx="5" cy="7" r="1.8" fill="#fff"/><circle cx="18.5" cy="6" r="1.8" fill="#fff"/><circle cx="17" cy="18" r="1.8" fill="#fff"/><circle cx="6.5" cy="17.5" r="1.8" fill="#fff"/></svg></span>
+            <span class="row-label">Active fires<small>NASA VIIRS satellite hotspots</small></span>
+            <input type="checkbox" class="switch" id="ov-fires">
+          </label>
+          <label class="row" for="ov-labels">
+            <span class="icon i-blue"><svg viewBox="0 0 24 24"><path d="M12 2.5a7 7 0 0 0-7 7c0 5.2 7 12 7 12s7-6.8 7-12a7 7 0 0 0-7-7z" fill="#fff"/><circle cx="12" cy="9.5" r="2.6" fill="#007AFF"/></svg></span>
+            <span class="row-label">Place names</span>
+            <input type="checkbox" class="switch" id="ov-labels" checked>
+          </label>
+          <label class="row" for="ov-border">
+            <span class="icon i-indigo"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3.5 2.5"/></svg></span>
+            <span class="row-label">BC boundary</span>
+            <input type="checkbox" class="switch" id="ov-border" checked>
+          </label>
+          <div class="row">
+            <span class="icon i-pink"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="#fff" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <label for="gibs-date" class="row-label">Satellite date</label>
+            <input type="date" id="gibs-date" value="2023-08-18" min="2012-01-20">
+          </div>
+        </div>
+        <p class="sec-foot">The date sets Thermal, Smoke and Active fires. 18 Aug 2023 was during the Okanagan and Shuswap fires.</p>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">Weather scenario</h2>
+        <div class="chips" role="radiogroup" aria-label="Weather preset">
+          <input type="radio" name="preset" id="p-typical" value="typical" checked><label for="p-typical">Typical July<small>Normal summer day</small></label>
+          <input type="radio" name="preset" id="p-heatdome" value="heatdome"><label for="p-heatdome">Heat dome<small>Like June 2021</small></label>
+          <input type="radio" name="preset" id="p-lightning" value="lightning"><label for="p-lightning">Hot &amp; windy<small>Dry, gusty week</small></label>
+          <input type="radio" name="preset" id="p-wet" value="wet"><label for="p-wet">Wet spring<small>Cool and rainy</small></label>
+        </div>
+        <div class="list">
+          <div class="row row-slider">
+            <span class="icon i-red"><svg viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 0 1 4 0v9.3a4.2 4.2 0 1 1-4 0z" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="17.3" r="1.8" fill="#fff"/></svg></span>
+            <label for="s-temp" class="row-label">Temperature</label>
+            <output id="s-temp-out" class="row-value" for="s-temp">+0 °C</output>
+            <input type="range" id="s-temp" min="-10" max="12" step="1" value="0">
+          </div>
+          <div class="row row-slider">
+            <span class="icon i-cyan"><svg viewBox="0 0 24 24"><path d="M12 3s6.5 7.2 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10.2 12 3 12 3z" fill="#fff"/></svg></span>
+            <label for="s-rh" class="row-label">Humidity</label>
+            <output id="s-rh-out" class="row-value" for="s-rh">+0 %</output>
+            <input type="range" id="s-rh" min="-25" max="25" step="1" value="0">
+          </div>
+          <div class="row row-slider">
+            <span class="icon i-teal"><svg viewBox="0 0 24 24"><path d="M3 9h11.5a3 3 0 1 0-3-3M3 14h15a3 3 0 1 1-3 3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <label for="s-wind" class="row-label">Wind</label>
+            <output id="s-wind-out" class="row-value" for="s-wind">×1.0</output>
+            <input type="range" id="s-wind" min="0.5" max="2" step="0.1" value="1">
+          </div>
+          <div class="row row-slider">
+            <span class="icon i-blue"><svg viewBox="0 0 24 24"><path d="M7.5 14.5a4 4 0 0 1 .3-8 5 5 0 0 1 9.4 1.6 3.2 3.2 0 0 1-.2 6.4z" fill="#fff"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <label for="s-rain" class="row-label">Rainfall, past 7 days</label>
+            <output id="s-rain-out" class="row-value" for="s-rain">×1.0</output>
+            <input type="range" id="s-rain" min="0" max="3" step="0.1" value="1">
+          </div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">Prediction</h2>
+        <div class="list pad">
+          <div class="big-stat"><b id="risk-share">–</b><span>of BC at High or Extreme risk</span></div>
+          <div class="stack" id="stack" aria-hidden="true"></div>
+          <ul class="class-list" id="class-list"></ul>
+        </div>
+        <p class="sec-foot">Areas in hectares, from 0.4° × 0.4° grid cells.</p>
+      </section>
+
+      <section class="sec" id="selected-sec">
+        <h2 class="sec-title">Fire risk here</h2>
+        <div class="list pad" id="cell-card" aria-live="polite"></div>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">Wildlife here</h2>
+        <div class="list pad" id="wild-card" aria-live="polite"></div>
+        <p class="sec-foot">Caribou herd and grizzly bear numbers are BC government estimates for the whole herd or bear population area you clicked in, not just this spot. Only these two species have local counts. Sightings show how often people photographed an animal nearby (iNaturalist), not how many live there.</p>
+      </section>
+
+      <section class="sec">
+        <h2 class="sec-title">People here</h2>
+        <div class="list pad" id="people-card" aria-live="polite"></div>
+        <p class="sec-foot">Statistics Canada 2021 Census, via the BC Data Catalogue.</p>
+      </section>
+    </aside>
+  </section>
+
+  <!-- ================= MODEL ================= -->
+  <section class="view page" id="view-model" hidden>
+    <div class="wrap">
+      <div class="hero">
+        <p class="eyebrow">How it works</p>
+        <h1>Four questions.<br>One prediction.</h1>
+        <p class="sub">A Decision Tree asks yes-or-no questions about the weather until it reaches a risk level.</p>
+      </div>
+
+      <div class="block">
+        <div class="tile tree-tile">
+          <span class="tag">Placeholder tree · will be replaced by the trained model</span>
+          <div class="tree-scroll"><svg id="tree" role="img" aria-label="Decision tree diagram"></svg></div>
+        </div>
+        <p class="tree-caption" id="tree-caption"></p>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>What the model looks at.</h2>
+          <p>Four weather measurements, each one known to dry out forests or help fire spread.</p>
+        </div>
+        <div class="tiles two">
+          <article class="tile">
+            <span class="icon i-red"><svg viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 0 1 4 0v9.3a4.2 4.2 0 1 1-4 0z" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="17.3" r="1.8" fill="#fff"/></svg></span>
+            <h3>Air temperature</h3>
+            <span class="unit">°C, daily maximum</span>
+            <p>Hot air dries out fuels like needles, grass and dead wood.</p>
+            <p class="src">Source: Environment and Climate Change Canada</p>
+          </article>
+          <article class="tile">
+            <span class="icon i-cyan"><svg viewBox="0 0 24 24"><path d="M12 3s6.5 7.2 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10.2 12 3 12 3z" fill="#fff"/></svg></span>
+            <h3>Relative humidity</h3>
+            <span class="unit">%, afternoon</span>
+            <p>Dry air pulls moisture out of fuels so they catch fire easily.</p>
+            <p class="src">Source: ECCC and BC Wildfire Service stations</p>
+          </article>
+          <article class="tile">
+            <span class="icon i-teal"><svg viewBox="0 0 24 24"><path d="M3 9h11.5a3 3 0 1 0-3-3M3 14h15a3 3 0 1 1-3 3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <h3>Wind speed</h3>
+            <span class="unit">km/h, at 10 m</span>
+            <p>Wind feeds oxygen to a fire and carries embers ahead of it.</p>
+            <p class="src">Source: ECCC and BC Wildfire Service stations</p>
+          </article>
+          <article class="tile">
+            <span class="icon i-blue"><svg viewBox="0 0 24 24"><path d="M7.5 14.5a4 4 0 0 1 .3-8 5 5 0 0 1 9.4 1.6 3.2 3.2 0 0 1-.2 6.4z" fill="#fff"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <h3>Rainfall</h3>
+            <span class="unit">mm, past 7 days</span>
+            <p>Recent rain keeps fuels wet. A dry week lets them cure.</p>
+            <p class="src">Source: Environment and Climate Change Canada</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>How well it works.</h2>
+          <p>These numbers are filled in after the model is trained and tested on years it has not seen.</p>
+        </div>
+        <div class="tiles">
+          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Accuracy</p><p>Share of test areas classified correctly.</p></article>
+          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Precision</p><p>When it says High or Extreme, how often it is right.</p></article>
+          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Recall</p><p>Of the truly dangerous areas, how many it caught.</p></article>
+          <article class="tile"><span class="kpi set">4</span><p class="kpi-label">Questions, at most</p><p>Depth of the placeholder tree, with 11 possible outcomes.</p></article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section class="view page" id="view-about" hidden>
+    <div class="wrap">
+      <div class="hero">
+        <p class="eyebrow">Science fair project</p>
+        <h1><span class="fire-text">Prefire.</span></h1>
+        <p class="sub">Predicting British Columbia wildfire risk to protect wildlife habitats.</p>
+        <p class="body">An AI-powered web tool using Decision Tree classification. It learns from historical air temperature, humidity, wind and rainfall to find the weather patterns that come before severe wildfires, then maps the areas of BC at risk so conservationists, researchers and authorities can act early.</p>
+      </div>
+
+      <div class="tile stat-tile">
+        <span class="mega fire-text">886,300 ha</span>
+        <p>of BC forest burned in last year's wildfire season, along with the habitat it gave to the animals living there.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Who lives there.</h2>
+          <p>Some species depend on forests that take decades or centuries to grow back.</p>
+        </div>
+        <div class="tiles">
+          <article class="tile"><h3>Woodland caribou</h3><p>Feed on lichen that grows in old forests. Lichen takes decades to return after a fire.</p></article>
+          <article class="tile"><h3>Grizzly bear</h3><p>Need large, connected areas of habitat. Severe fires break up the ranges they travel through.</p></article>
+          <article class="tile"><h3>Northern spotted owl</h3><p>One of Canada's most endangered birds. It needs old-growth forest that cannot be replaced quickly.</p></article>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>The method.</h2>
+          <p>From raw records to a map anyone can read.</p>
+        </div>
+        <ol class="steps">
+          <li><b>Collect</b><span>Historical weather and wildfire records for BC.</span></li>
+          <li><b>Clean</b><span>Match weather readings to fire locations and dates.</span></li>
+          <li><b>Train</b><span>Fit a Decision Tree on temperature, humidity, wind and rain.</span></li>
+          <li><b>Test</b><span>Measure accuracy on years the model has not seen.</span></li>
+          <li><b>Map</b><span>Run the model across BC and show the results here.</span></li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-head"><h2>Data sources.</h2></div>
+        <nav class="links" aria-label="Data sources">
+          <a href="https://www2.gov.bc.ca/gov/content/safety/wildfire-status" target="_blank" rel="noopener"><span>BC Wildfire Service<small>Historical fires and fire weather stations</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/" target="_blank" rel="noopener"><span>BC Data Catalogue<small>Provincial boundaries and wildlife habitat</small></span><span class="chev">›</span></a>
+          <a href="https://climate.weather.gc.ca/" target="_blank" rel="noopener"><span>Environment and Climate Change Canada<small>Historical climate data</small></span><span class="chev">›</span></a>
+          <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noopener"><span>NASA FIRMS<small>Satellite fire detections</small></span><span class="chev">›</span></a>
+          <a href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener"><span>NASA Worldview<small>Land surface temperature and daily imagery</small></span><span class="chev">›</span></a>
+        </nav>
+      </div>
+
+      <p class="credit">Map tiles: Esri, OpenStreetMap contributors, OpenTopoMap, NASA GIBS. Built with Leaflet.</p>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  /* ---------------- Risk classes ---------------- */
+  const CLASSES = [
+    { name: "Low",      color: "#34C759" },
+    { name: "Moderate", color: "#FFCC00", darkText: true },
+    { name: "High",     color: "#FF9500" },
+    { name: "Extreme",  color: "#FF3B30" },
+  ];
+  const FEATURES = {
+    temp: { label: "Temperature", short: "Temperature", unit: "°C" },
+    rh:   { label: "Humidity", short: "Humidity", unit: "%" },
+    wind: { label: "Wind", short: "Wind", unit: "km/h" },
+    rain: { label: "Rain, 7 days", short: "Rain (7 days)", unit: "mm" },
+  };
+
+  /* ---------------- Placeholder Decision Tree ----------------
+     Internal node: { f: feature, t: threshold, l: node if value <= t, r: node if value > t }
+     Leaf: { c: class index }. Replace with the tree exported from the trained model. */
+  const TREE = { f: "rain", t: 4.5,
+    l: { f: "rh", t: 32,
+      l: { f: "temp", t: 27.5,
+        l: { f: "wind", t: 18, l: { c: 2 }, r: { c: 3 } },
+        r: { c: 3 } },
+      r: { f: "wind", t: 22,
+        l: { f: "temp", t: 24, l: { c: 1 }, r: { c: 2 } },
+        r: { c: 2 } } },
+    r: { f: "rain", t: 15,
+      l: { f: "rh", t: 40,
+        l: { f: "temp", t: 26, l: { c: 1 }, r: { c: 2 } },
+        r: { f: "wind", t: 25, l: { c: 0 }, r: { c: 1 } } },
+      r: { c: 0 } } };
+
+  function predict(x) {
+    const path = [];
+    let n = TREE;
+    while (n.c === undefined) {
+      const left = x[n.f] <= n.t;
+      path.push({ node: n, value: x[n.f], left });
+      n = left ? n.l : n.r;
+    }
+    path.push({ node: n });
+    return { cls: n.c, path };
+  }
+
+  /* ---------------- Simplified BC outline (lat, lon) ---------------- */
+  const BC_MAINLAND = [
+    [49.0,-123.05],[49.0,-114.07],[49.6,-114.7],[50.5,-115.0],[51.4,-116.3],[52.2,-117.6],[52.9,-118.4],[53.4,-119.0],[53.8,-120.0],
+    [60.0,-120.0],[60.0,-139.05],[59.8,-137.6],[59.4,-136.4],[59.6,-135.2],[59.0,-134.3],[58.2,-133.3],[57.3,-132.2],[56.6,-131.5],
+    [56.1,-130.1],[55.9,-130.0],[55.3,-130.1],[54.7,-130.6],[54.3,-130.4],[53.5,-129.8],[52.8,-129.0],[52.0,-128.1],[51.2,-127.6],
+    [50.9,-127.0],[50.5,-126.0],[50.1,-125.0],[49.7,-124.3],[49.3,-123.2]
+  ];
+  const VAN_ISLAND = [
+    [50.8,-128.4],[50.4,-126.4],[50.0,-125.2],[49.4,-124.4],[48.8,-123.5],[48.4,-123.3],[48.4,-123.9],[48.6,-124.7],
+    [49.0,-125.7],[49.4,-126.5],[49.9,-127.3],[50.3,-127.9]
+  ];
+  const HAIDA_GWAII = [
+    [54.2,-133.1],[54.1,-131.7],[53.2,-131.6],[52.0,-131.0],[52.4,-131.6],[53.3,-132.7]
+  ];
+  const BC_POLYS = [BC_MAINLAND, VAN_ISLAND, HAIDA_GWAII];
+
+  function inPoly(lat, lon, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [yi, xi] = poly[i], [yj, xj] = poly[j];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  const inBC = (lat, lon) => BC_POLYS.some(p => inPoly(lat, lon, p));
+
+  /* ---------------- Simulated weather (placeholder data) ---------------- */
+  function hash(i, j, s) {
+    let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(s, 982451653);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function noise(x, y, s) {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+    const top = a + (b - a) * u, bot = c + (d - c) * u;
+    return top + (bot - top) * v;
+  }
+  const COAST = [[48.3,-124.5],[49.3,-123.3],[50.0,-125.0],[51.0,-127.3],[52.0,-128.1],[53.0,-129.3],[54.5,-130.5],[56.0,-130.3],[57.0,-132.0],[58.0,-133.4],[59.0,-135.0],[60.0,-138.5]];
+  function coastLon(lat) {
+    if (lat <= COAST[0][0]) return COAST[0][1];
+    for (let i = 1; i < COAST.length; i++) {
+      if (lat <= COAST[i][0]) {
+        const [a0, b0] = COAST[i - 1], [a1, b1] = COAST[i];
+        return b0 + (b1 - b0) * (lat - a0) / (a1 - a0);
+      }
+    }
+    return COAST[COAST.length - 1][1];
+  }
+  function baseWeather(lat, lon) {
+    const dist = Math.max(0, lon - coastLon(lat)) * Math.cos(lat * Math.PI / 180);
+    const coast = Math.exp(-dist / 1.0);
+    const dry = Math.exp(-(((lat - 50.7) ** 2) / 1.0 + ((lon + 120.2) ** 2) / 2.5)); // southern interior dry belt
+    const n1 = noise(lon / 1.6, lat / 1.6, 1) - 0.5, n2 = noise(lon / 1.3, lat / 1.3, 2) - 0.5;
+    const n3 = noise(lon / 2.0, lat / 2.0, 3) - 0.5, n4 = noise(lon / 1.1, lat / 1.1, 4) - 0.5;
+    return {
+      temp: 29 - (lat - 49) * 0.9 - 7 * coast + 5 * dry + 6 * n1,
+      rh:   30 + 35 * coast + (lat - 49) * 1.4 - 10 * dry + 16 * n2,
+      wind: 14 + 14 * n3 + 4 * dry + 4 * coast,
+      rain: 3 + 22 * coast + (lat - 49) * 0.5 - 2.5 * dry + 10 * n4,
+    };
+  }
+
+  const STEP = 0.4;
+  const cells = [];
+  const cellIndex = new Map();
+  function key(lat, lon) {
+    const i = Math.floor((lat - 48.2 + 1e-9) / STEP), j = Math.floor((lon + 139.2 + 1e-9) / STEP);
+    return i + "," + j;
+  }
+  for (let lat = 48.2; lat < 60; lat += STEP) {
+    for (let lon = -139.2; lon < -114; lon += STEP) {
+      const la = +lat.toFixed(2), lo = +lon.toFixed(2);
+      const clat = la + STEP / 2, clon = lo + STEP / 2;
+      if (!inBC(clat, clon)) continue;
+      const kmLat = STEP * 111.32, kmLon = STEP * 111.32 * Math.cos(clat * Math.PI / 180);
+      const cell = { lat: la, lon: lo, clat, clon, ha: kmLat * kmLon * 100, base: baseWeather(clat, clon) };
+      cells.push(cell);
+      cellIndex.set(key(la, lo), cell);
+    }
+  }
+
+  /* ---------------- Scenario ---------------- */
+  const PRESETS = {
+    typical:   { temp: 0,  rh: 0,   wind: 1.0, rain: 1.0 },
+    heatdome:  { temp: 10, rh: -12, wind: 1.0, rain: 0.1 },
+    lightning: { temp: 4,  rh: -8,  wind: 1.6, rain: 0.3 },
+    wet:       { temp: -5, rh: 15,  wind: 0.8, rain: 2.5 },
+  };
+  const $ = id => document.getElementById(id);
+  const sliders = { temp: $("s-temp"), rh: $("s-rh"), wind: $("s-wind"), rain: $("s-rain") };
+  const scenario = () => ({ temp: +sliders.temp.value, rh: +sliders.rh.value, wind: +sliders.wind.value, rain: +sliders.rain.value });
+
+  function applyScenario(b, s) {
+    return {
+      temp: b.temp + s.temp,
+      rh: Math.min(100, Math.max(5, b.rh + s.rh)),
+      wind: Math.max(0, b.wind * s.wind),
+      rain: Math.max(0, b.rain * s.rain),
+    };
+  }
+  function paintRange(r) {
+    r.style.setProperty("--p", ((r.value - r.min) / (r.max - r.min) * 100) + "%");
+  }
+  function updateSliderLabels() {
+    const s = scenario();
+    $("s-temp-out").value = (s.temp >= 0 ? "+" : "−") + Math.abs(s.temp) + " °C";
+    $("s-rh-out").value = (s.rh >= 0 ? "+" : "−") + Math.abs(s.rh) + " %";
+    $("s-wind-out").value = "×" + s.wind.toFixed(1);
+    $("s-rain-out").value = "×" + s.rain.toFixed(1);
+    Object.values(sliders).forEach(paintRange);
+  }
+
+  /* ---------------- Map ---------------- */
+  const map = L.map("map", { zoomControl: false, minZoom: 4, maxBounds: [[44, -150], [64, -105]] });
+  L.control.zoom({ position: "topright" }).addTo(map);
+  /* Initial view: fit BC beside the floating panel on wide screens. Must run before any layer is added. */
+  function fitBC() {
+    const size = map.getSize();
+    // A hidden or tiny map can't fit bounds (the zoom comes out as NaN), so fall back to a fixed view.
+    if (size.x < 200 || size.y < 200) { map.setView([54.4, -126.5], 5); return; }
+    const panel = window.matchMedia("(min-width: 821px)").matches && size.x > 900 ? 400 : 10;
+    map.fitBounds([[48.3, -139], [60, -114.5]], { paddingTopLeft: [panel, 10], paddingBottomRight: [10, 10] });
+    if (!isFinite(map.getZoom())) map.setView([54.4, -126.5], 5);
+  }
+  fitBC();
+  const canvas = L.canvas({ padding: 0.5 });
+
+  const gibsUrl = (layer, matrix, ext) => date => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${date}/${matrix}/{z}/{y}/{x}.${ext}`;
+  const GIBS = {
+    lst:  { url: gibsUrl("MODIS_Terra_Land_Surface_Temp_Day", "GoogleMapsCompatible_Level7", "png"), maxNativeZoom: 7 },
+    true: { url: gibsUrl("MODIS_Terra_CorrectedReflectance_TrueColor", "GoogleMapsCompatible_Level9", "jpg"), maxNativeZoom: 9 },
+  };
+  const gibsAttr = 'Imagery: <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener">NASA GIBS</a>';
+  const dateInput = $("gibs-date");
+  dateInput.max = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+
+  const esriAttr = "Tiles © Esri";
+  const DARK_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+  const lstLayer = L.tileLayer(GIBS.lst.url(dateInput.value), { maxNativeZoom: GIBS.lst.maxNativeZoom, maxZoom: 12, attribution: gibsAttr, opacity: 0.9 });
+  const trueLayer = L.tileLayer(GIBS.true.url(dateInput.value), { maxNativeZoom: GIBS.true.maxNativeZoom, maxZoom: 13, attribution: gibsAttr });
+
+  const BASES = {
+    satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: esriAttr + ", Maxar, Earthstar Geographics" }),
+    street: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: esriAttr + ", HERE, Garmin, OpenStreetMap contributors" }),
+    topo: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 17, attribution: 'Map data © OpenStreetMap contributors, SRTM | Style © <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a>' }),
+    thermal: L.layerGroup([L.tileLayer(DARK_URL, { maxZoom: 16, attribution: esriAttr }), lstLayer]),
+    truecolor: trueLayer,
+    relief: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}", { maxZoom: 13, attribution: esriAttr }),
+  };
+  let currentBase = BASES.satellite.addTo(map);
+
+  const labelsLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, pane: "overlayPane", zIndex: 650 });
+  // Fire detections are vector data at NASA, so request them through GIBS WMS, which draws them as PNG.
+  const firesLayer = L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi", {
+    layers: "VIIRS_SNPP_Thermal_Anomalies_375m_All", format: "image/png", transparent: true,
+    TIME: dateInput.value, tileSize: 512, attribution: gibsAttr, zIndex: 640,
+  });
+  const borderLayer = L.polygon(BC_POLYS, { renderer: canvas, color: "#ffffff", weight: 2, dashArray: "6 5", fill: false, interactive: false, opacity: 0.85 });
+
+  const riskLayer = L.layerGroup();
+  cells.forEach(c => {
+    c.rect = L.rectangle([[c.lat, c.lon], [c.lat + STEP, c.lon + STEP]], { renderer: canvas, weight: 0, fillOpacity: 0.6, interactive: false });
+    riskLayer.addLayer(c.rect);
+  });
+  riskLayer.addTo(map);
+  labelsLayer.addTo(map);
+  borderLayer.addTo(map);
+
+  const highlight = L.rectangle([[0, 0], [0, 0]], { renderer: canvas, color: "#ffffff", weight: 3, fill: false, interactive: false });
+
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = () => {
+    const el = L.DomUtil.create("div", "legend glass");
+    el.id = "legend";
+    return el;
+  };
+  legend.addTo(map);
+  function renderLegend() {
+    const el = $("legend");
+    let html = "";
+    if (map.hasLayer(riskLayer)) {
+      html += "<b>Wildfire risk</b>" + CLASSES.slice().reverse().map(k => `<div><span class="dot" style="background:${k.color}"></span>${k.name}</div>`).join("");
+    }
+    if (currentBase === BASES.thermal) {
+      html += `<b>Land surface temperature</b><div class="ramp"></div><div class="ramp-labels"><span>Cooler</span><span>Hotter</span></div>`;
+    }
+    if (map.hasLayer(firesLayer)) {
+      html += `<b>Satellite</b><div><span class="dot" style="background:#ff3b1f"></span>Fire detected</div>`;
+    }
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+
+  /* ---------------- Compute + render ---------------- */
+  let selected = null;
+  function recompute() {
+    const s = scenario();
+    const totals = [0, 0, 0, 0];
+    const opacity = $("risk-opacity").value / 100;
+    cells.forEach(c => {
+      c.x = applyScenario(c.base, s);
+      c.result = predict(c.x);
+      totals[c.result.cls] += c.ha;
+      c.rect.setStyle({ fillColor: CLASSES[c.result.cls].color, fillOpacity: opacity });
+    });
+    renderSummary(totals);
+    if (selected) renderCell(selected);
+  }
+
+  const fmtMha = n => (n / 1e6).toFixed(1) + "M ha";
+  function renderSummary(totals) {
+    const sum = totals.reduce((a, b) => a + b, 0);
+    $("risk-share").textContent = Math.round((totals[2] + totals[3]) / sum * 100) + "%";
+    $("stack").innerHTML = totals.map((t, i) => ({ t, i })).reverse()
+      .map(({ t, i }) => t > 0 ? `<span style="flex:0 0 calc(${(t / sum * 100).toFixed(2)}% - 2px);background:${CLASSES[i].color}"></span>` : "").join("");
+    $("class-list").innerHTML = totals.map((t, i) => ({ t, i })).reverse().map(({ t, i }) =>
+      `<li><span class="dot" style="background:${CLASSES[i].color}"></span><span class="cl-name">${CLASSES[i].name}</span><span class="cl-val">${fmtMha(t)} · ${Math.round(t / sum * 100)}%</span></li>`
+    ).join("");
+  }
+
+  const fmt = (f, v) => f === "rh" ? v.toFixed(0) : v.toFixed(1);
+  function pillHtml(c) {
+    const k = CLASSES[c];
+    return `<span class="pill${k.darkText ? " dark-text" : ""}" style="background:${k.color}">${k.name}</span>`;
+  }
+  function renderCell(c) {
+    const r = c.result;
+    const steps = r.path.filter(p => p.node.c === undefined).map(p => {
+      const F = FEATURES[p.node.f];
+      return `<li><span>${F.short} ≤ ${p.node.t} ${F.unit}?</span><span class="ans ${p.left ? "yes" : "no"}">${p.left ? "Yes" : "No"} · ${fmt(p.node.f, p.value)}</span></li>`;
+    }).join("");
+    $("cell-card").innerHTML = `
+      <div class="cell-head">
+        <div><div class="cell-place">${c.clat.toFixed(2)}° N, ${Math.abs(c.clon).toFixed(2)}° W</div>
+        <div class="cell-sub">${Math.round(c.ha).toLocaleString("en-CA")} ha grid cell</div></div>
+        ${pillHtml(r.cls)}
+      </div>
+      <div class="metrics">
+        ${Object.keys(FEATURES).map(f => `<div class="metric"><span>${FEATURES[f].label}</span><b>${fmt(f, c.x[f])}<small>${FEATURES[f].unit}</small></b></div>`).join("")}
+      </div>
+      <div class="path-title">How the tree decided</div>
+      <ol class="path">${steps}</ol>
+      <button class="text-btn" type="button" id="see-tree">View on the tree ›</button>`;
+    $("see-tree").onclick = () => { location.hash = "model"; };
+    renderTree();
+  }
+  function selectCell(c) {
+    selected = c;
+    highlight.setBounds([[c.lat, c.lon], [c.lat + STEP, c.lon + STEP]]);
+    if (!map.hasLayer(highlight)) highlight.addTo(map);
+    renderCell(c);
+  }
+
+  map.on("click", e => {
+    const c = cellIndex.get(key(e.latlng.lat, e.latlng.lng));
+    if (c) {
+      selectCell(c);
+      loadPlace(e.latlng.lat, e.latlng.lng);
+      if (window.matchMedia("(min-width: 821px)").matches) {
+        const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        $("selected-sec").scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+      }
+    } else {
+      const msg = `<p class="empty">That spot is outside BC. Tap anywhere inside the province.</p>`;
+      $("cell-card").innerHTML = msg;
+      $("wild-card").innerHTML = msg;
+      $("people-card").innerHTML = msg;
+    }
+  });
+
+  /* ---------------- Wildlife and people at the clicked spot ----------------
+     Live data from the BC Data Catalogue (openmaps.gov.bc.ca) and iNaturalist. */
+  const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const nf = n => Math.round(n).toLocaleString("en-CA");
+  const loadingHtml = () => `<div class="skel" aria-label="Loading"><span></span><span></span><span></span></div>`;
+  const censusTotal = p => {
+    const parts = [p.POP_AGE_14_AND_UNDER, p.POP_AGE_15_64, p.POP_AGE_65_AND_OVER];
+    return parts.every(v => v == null) ? null : parts.reduce((a, v) => a + (v || 0), 0);
+  };
+  const ICON_PAW = `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="5" ry="4.2" fill="#fff"/><circle cx="6" cy="10.5" r="2.1" fill="#fff"/><circle cx="18" cy="10.5" r="2.1" fill="#fff"/><circle cx="9.3" cy="6.5" r="2.1" fill="#fff"/><circle cx="14.7" cy="6.5" r="2.1" fill="#fff"/></svg>`;
+  const ICON_ANTLER = `<svg viewBox="0 0 24 24"><path d="M12 21v-7M12 14c-3 0-5-2-5.5-5M6.5 9 4 6.5M6.5 9 6 4.5M12 14c3 0 5-2 5.5-5M17.5 9 20 6.5M17.5 9 18 4.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+  /* Grizzly bear population estimates (2018) by population unit name.
+     Source: BC Data Catalogue, "Grizzly Bear Population Estimates" (2015 and 2018 by GBPU). */
+  const GRIZZLY_EST_2018 = {"tatshenshini":407,"cassiar":611,"taiga":94,"hyland":231,"muskwa":840,"taku":576,"rocky":538,"alta":132,"spatsizi":666,"edziza-lower stikine":398,"finlay-ospika":971,"upper skeena-nass":755,"stewart":358,"omineca":402,"cranberry":352,"babine":313,"moberly":71,"parsnip":455,"bulkley-lakes":439,"nation":170,"francois":58,"north coast":190,"robson":534,"tweedsmuir":368,"blackwater-west chilcotin":53,"quesnel lake north":187,"wells gray":345,"columbia-shuswap":318,"central rockies":169,"klinaklini-homathko":251,"kwatna-owikeno":229,"north selkirk":265,"south chilcotin ranges":222,"rockies park ranges":116,"north purcells":332,"kingcome-wakeman":199,"central monashee":147,"toba-bute":130,"central selkirk":188,"stein-nahatlatch":22,"squamish-lillooet":46,"valhalla":88,"kettle-granby":87,"north cascades":6,"garibaldi-pitt":3,"flathead":140,"yahk":20,"south selkirk":58,"knight-bute":250,"hart":244,"nulki":44,"central-south purcells":176,"khutzeymateen":277,"south rockies":170,"kitlope-fiordland":214};
+
+  let placeCtrl = null;
+  let wildData = null;
+  let inatTab = "Mammalia";
+
+  function wfs(layer, cql, props, signal, count = 20) {
+    const p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: "pub:" + layer, outputFormat: "json", count: String(count), CQL_FILTER: cql });
+    if (props) p.set("propertyName", props);
+    return fetch(WFS + "?" + p, { signal }).then(r => r.json()).then(j => j.features.map(f => f.properties));
+  }
+  function inat(lat, lon, taxa, signal, radius = 20) {
+    const p = new URLSearchParams({ lat: lat.toFixed(4), lng: lon.toFixed(4), radius: String(radius), iconic_taxa: taxa, quality_grade: "research", per_page: "6", locale: "en" });
+    return fetch("https://api.inaturalist.org/v1/observations/species_counts?" + p, { signal })
+      .then(r => r.json())
+      .then(j => j.results.map(x => ({
+        name: x.taxon.preferred_common_name || x.taxon.name,
+        sci: x.taxon.name,
+        count: x.count,
+        photo: x.taxon.default_photo ? x.taxon.default_photo.square_url : null,
+        id: x.taxon.id,
+      })));
+  }
+
+  async function loadPlace(lat, lon) {
+    if (placeCtrl) placeCtrl.abort();
+    placeCtrl = new AbortController();
+    const signal = placeCtrl.signal;
+    const pt = `SRID=4326;POINT(${lon.toFixed(5)} ${lat.toFixed(5)})`;
+    const inside = g => `INTERSECTS(${g},${pt})`;
+    const safe = p => p.catch(e => { if (e.name === "AbortError") throw e; return null; });
+    $("wild-card").innerHTML = loadingHtml();
+    $("people-card").innerHTML = loadingHtml();
+    try {
+      const [caribou, grizzly, grizzlyGone, wha, mammals, birds, csd, cd] = await Promise.all([
+        safe(wfs("WHSE_WILDLIFE_INVENTORY.GCPB_CARIBOU_POPULATION_SP", inside("GEOMETRY"), "HERD_NAME,ECOTYPE,RISK_STATUS,ESTIMATED_CARIBOU_POPULATION,YEAR_OF_LAST_SURVEY", signal)),
+        safe(wfs("WHSE_WILDLIFE_INVENTORY.GCPB_GRIZZLY_BEAR_POP_UNITS_SP", `VERSION_NAME='2020' AND ${inside("GEOMETRY")}`, "DISPLAY_NAME,CONSERVATION_CONCERN_DESC", signal)),
+        safe(wfs("WHSE_WILDLIFE_INVENTORY.GCPB_GRIZZLY_BEAR_POP_UNITS_SP", `STATUS='Extirpated' AND ${inside("GEOMETRY")}`, "STATUS", signal, 1)),
+        safe(wfs("WHSE_WILDLIFE_MANAGEMENT.WCP_WILDLIFE_HABITAT_AREA_POLY", `DWITHIN(GEOMETRY,${pt},25000,meters)`, "COMMON_SPECIES_NAME", signal, 500)),
+        safe(inat(lat, lon, "Mammalia", signal)),
+        safe(inat(lat, lon, "Aves", signal)),
+        safe(wfs("WHSE_HUMAN_CULTURAL_ECONOMIC.CEN_PROF_CSD_POPULATION_SV", inside("GEOMETRY"), "CENSUS_SUBDIVISION_NAME,POP_AGE_14_AND_UNDER,POP_AGE_15_64,POP_AGE_65_AND_OVER,POP_MEDIAN_AGE,FEATURE_AREA_SQM", signal)),
+        safe(wfs("WHSE_HUMAN_CULTURAL_ECONOMIC.CEN_PROF_CD_POPULATION_SV", inside("GEOMETRY"), "CENSUS_DIVISION_NAME,POP_AGE_14_AND_UNDER,POP_AGE_15_64,POP_AGE_65_AND_OVER", signal)),
+      ]);
+      // Newer official caribou counts live in BC's wildlife survey records; use them when newer than the herd map.
+      if (caribou && caribou.length) {
+        const ALIAS = { "Frisby Boulder": "Frisby-Boulder", "George Mountain": "George Mtn" };
+        const names = caribou.map(h => ALIAS[h.HERD_NAME] || h.HERD_NAME).filter(Boolean);
+        const list = names.map(n => `'${n.replace(/'/g, "''")}'`).join(",");
+        const surveys = await safe(wfs("WHSE_WILDLIFE_INVENTORY.SPI_SURVEY_SUMMARIES_SV",
+          `SPECIES_ENGLISH_NAME='Caribou' AND PARAMETER_NAME='Official Population Estimate' AND POPULATION_UNIT_NAME IN (${list})`,
+          "POPULATION_UNIT_NAME,SUMMARY_YEAR,PARAMETER_VALUE", signal, 200));
+        (surveys || []).forEach(s => {
+          const herd = caribou.find(h => (ALIAS[h.HERD_NAME] || h.HERD_NAME) === s.POPULATION_UNIT_NAME);
+          if (!herd || s.PARAMETER_VALUE == null) return;
+          const mapYear = parseInt(herd.YEAR_OF_LAST_SURVEY, 10) || 0;
+          const best = herd._survey;
+          if (s.SUMMARY_YEAR > mapYear && (!best || s.SUMMARY_YEAR > best.year)) herd._survey = { year: s.SUMMARY_YEAR, value: s.PARAMETER_VALUE };
+        });
+      }
+
+      // Remote areas often have few sightings, so widen the search once if needed.
+      let inatData = { Mammalia: mammals, Aves: birds }, inatRadius = 20;
+      if ((mammals && mammals.length < 3) || (birds && birds.length < 3)) {
+        const [m2, b2] = await Promise.all([safe(inat(lat, lon, "Mammalia", signal, 75)), safe(inat(lat, lon, "Aves", signal, 75))]);
+        inatData = { Mammalia: m2 || mammals, Aves: b2 || birds };
+        inatRadius = 75;
+      }
+      wildData = { caribou, grizzly, grizzlyGone, wha, inat: inatData, inatRadius };
+      renderWildlife();
+      renderPeople(csd, cd);
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      const msg = `<p class="empty">Couldn't load data for this spot. Check your internet connection and click again.</p>`;
+      $("wild-card").innerHTML = msg;
+      $("people-card").innerHTML = msg;
+    }
+  }
+
+  function statusClass(s) {
+    s = String(s || "").toLowerCase();
+    return s.includes("red") || s.includes("endangered") || s.includes("threatened") ? "red" : s.includes("blue") || s.includes("special") ? "blue" : "";
+  }
+  function atRiskRow(icon, color, name, meta, status, num, numLabel) {
+    return `<li class="sp"><span class="ph" style="background:${color}">${icon}</span>
+      <div><div class="sp-name">${name}</div><div class="sp-meta">${meta}</div>${status ? `<span class="status ${statusClass(status)}">${esc(status)}</span>` : ""}</div>
+      <div class="sp-num">${num}<small>${numLabel}</small></div></li>`;
+  }
+
+  function renderWildlife() {
+    const d = wildData;
+    let html = "";
+
+    // Species at risk with population estimates
+    const rows = [];
+    (d.caribou || []).forEach(h => {
+      const s = h._survey;
+      const n = s ? Number(s.value) : parseInt(h.ESTIMATED_CARIBOU_POPULATION, 10);
+      const year = s ? s.year : (/^\d{4}$/.test(h.YEAR_OF_LAST_SURVEY || "") ? h.YEAR_OF_LAST_SURVEY : "");
+      rows.push(atRiskRow(ICON_ANTLER, "#A2845E", "Woodland caribou",
+        `${esc(h.HERD_NAME)} herd · ${esc(h.ECOTYPE)}${year ? " · counted " + esc(year) : ""}`,
+        h.RISK_STATUS, Number.isFinite(n) ? "≈" + nf(n) : "?", "in herd"));
+    });
+    const g = (d.grizzly || [])[0];
+    const gGone = g && /extirpated/i.test(g.CONSERVATION_CONCERN_DESC || "");
+    if (g && !gGone) {
+      const gName = (g.DISPLAY_NAME || "").replace(/\\/g, "").trim();
+      const est = GRIZZLY_EST_2018[gName.toLowerCase()];
+      rows.push(atRiskRow(ICON_PAW, "#8E5B3A", "Grizzly bear",
+        `${gName ? esc(gName) + " population" : "Local population"}${est != null ? " · 2018 estimate" : ""}`,
+        g.CONSERVATION_CONCERN_DESC ? "Concern: " + g.CONSERVATION_CONCERN_DESC : "",
+        est != null ? "≈" + nf(est) : "—", est != null ? "bears" : "no count"));
+    } else if (gGone || (d.grizzlyGone || []).length) {
+      rows.push(atRiskRow(ICON_PAW, "#8E8E93", "Grizzly bear", "Lived here once, but no longer found here", "Extirpated", "0", "today"));
+    }
+    html += `<div class="sub-title">Species at risk</div>`;
+    html += rows.length ? `<ul class="sp-list">${rows.join("")}</ul>` : `<p class="empty">No caribou herd or grizzly population ranges here.</p>`;
+
+    // Protected habitat nearby
+    const counts = {};
+    (d.wha || []).forEach(w => { const n = w.COMMON_SPECIES_NAME; if (n) counts[n] = (counts[n] || 0) + 1; });
+    const whaList = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (whaList.length) {
+      html += `<div class="divider"></div><div class="sub-title">Protected habitat within 25 km</div>
+        <div class="tag-chips">${whaList.map(([n, c]) => `<span>${esc(n)} · ${c} area${c > 1 ? "s" : ""}</span>`).join("")}</div>`;
+    }
+
+    // Most-seen animals (iNaturalist)
+    const list = d.inat[inatTab];
+    html += `<div class="divider"></div><div class="sub-title">Most-seen animals within ${d.inatRadius} km</div>
+      <div class="seg-sm" role="group" aria-label="Animal group">
+        <button type="button" data-tab="Mammalia" aria-pressed="${inatTab === "Mammalia"}">Mammals</button>
+        <button type="button" data-tab="Aves" aria-pressed="${inatTab === "Aves"}">Birds</button>
+      </div>`;
+    if (list == null) html += `<p class="empty">Sightings couldn't load right now.</p>`;
+    else if (!list.length) html += `<p class="empty">No verified sightings recorded near here yet.</p>`;
+    else html += `<ul class="sp-list">${list.map(s => `<li class="sp">
+        ${s.photo ? `<img class="ph" src="${esc(s.photo)}" alt="" loading="lazy">` : `<span class="ph" style="background:#8E8E93">${ICON_PAW}</span>`}
+        <div><div class="sp-name"><a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank" rel="noopener">${esc(s.name)}</a></div><div class="sp-meta"><i>${esc(s.sci)}</i></div></div>
+        <div class="sp-num">${nf(s.count)}<small>${s.count === 1 ? "sighting" : "sightings"}</small></div></li>`).join("")}</ul>`;
+
+    const card = $("wild-card");
+    card.innerHTML = html;
+    card.querySelectorAll(".seg-sm button").forEach(b => b.addEventListener("click", () => { inatTab = b.dataset.tab; renderWildlife(); }));
+  }
+
+  function renderPeople(csd, cd) {
+    const c = (csd || [])[0], dv = (cd || [])[0];
+    let html = "";
+    const t = c ? censusTotal(c) : null;
+    if (c && t) {
+      const km2 = c.FEATURE_AREA_SQM / 1e6;
+      const dens = t / km2;
+      html += `<div class="people-main"><span class="cap">${esc(c.CENSUS_SUBDIVISION_NAME)}</span><b>${nf(t)}</b><span>people live here (2021 census)</span></div>
+        <div class="metrics">
+          <div class="metric"><span>People per km²</span><b>${dens < 0.1 ? "&lt; 0.1" : dens < 10 ? dens.toFixed(1) : nf(dens)}</b></div>
+          <div class="metric"><span>Median age</span><b>${c.POP_MEDIAN_AGE != null ? esc(c.POP_MEDIAN_AGE) : "—"}<small>yrs</small></b></div>
+        </div>`;
+    } else if (c) {
+      html += `<p class="empty">${esc(c.CENSUS_SUBDIVISION_NAME)} has too few residents for a published census count.</p>`;
+    } else {
+      html += `<p class="empty">No census community covers this spot.</p>`;
+    }
+    const dt = dv ? censusTotal(dv) : null;
+    if (dv && dt) html += `<div class="mini-row"><span>${esc(dv.CENSUS_DIVISION_NAME)} region</span><b>${nf(dt)} people</b></div>`;
+    $("people-card").innerHTML = html;
+  }
+
+  /* ---------------- Tree diagram ---------------- */
+  function renderTree() {
+    const svg = $("tree");
+    const onSet = new Set(selected ? selected.result.path.map(p => p.node) : []);
+    const COLW = 104, ROWH = 100, PAD = 24, NW = 150, NH = 48, LW = 92, LH = 34;
+    let leafCount = 0, maxDepth = 0;
+    (function layout(n, d) {
+      n._d = d; maxDepth = Math.max(maxDepth, d);
+      if (n.c !== undefined) { n._x = leafCount++ * COLW; return; }
+      layout(n.l, d + 1); layout(n.r, d + 1);
+      n._x = (n.l._x + n.r._x) / 2;
+    })(TREE, 0);
+    const W = (leafCount - 1) * COLW + NW + PAD * 2, H = maxDepth * ROWH + NH + PAD * 2;
+    const ox = PAD + NW / 2, oy = PAD;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    let edges = "", nodes = "";
+    (function draw(n) {
+      const x = ox + n._x, y = oy + n._d * ROWH;
+      const on = onSet.has(n) ? " on" : "";
+      if (n.c !== undefined) {
+        const k = CLASSES[n.c];
+        nodes += `<g class="leaf${k.darkText ? " dark-text" : ""}${on}"><rect x="${x - LW / 2}" y="${y}" width="${LW}" height="${LH}" rx="17" fill="${k.color}"/><text x="${x}" y="${y + LH / 2 + 4.5}" text-anchor="middle">${k.name}</text></g>`;
+        return;
+      }
+      const F = FEATURES[n.f];
+      nodes += `<g class="node${on}"><rect x="${x - NW / 2}" y="${y}" width="${NW}" height="${NH}" rx="14"/><text x="${x}" y="${y + 20}" text-anchor="middle">${F.short}</text><text class="q2" x="${x}" y="${y + 37}" text-anchor="middle">≤ ${n.t} ${F.unit}?</text></g>`;
+      [["l", "Yes"], ["r", "No"]].forEach(([side, label]) => {
+        const ch = n[side], cx = ox + ch._x, cy = oy + ch._d * ROWH;
+        const eon = onSet.has(n) && onSet.has(ch) ? " on" : "";
+        const y1 = y + NH, my = (y1 + cy) / 2;
+        edges += `<path class="edge${eon}" d="M${x},${y1} C${x},${my} ${cx},${my} ${cx},${cy}"/>`;
+        edges += `<text class="edge-label" x="${(x + cx) / 2 + (side === "l" ? -8 : 8)}" y="${my - 2}" text-anchor="${side === "l" ? "end" : "start"}">${label}</text>`;
+        draw(ch);
+      });
+    })(TREE);
+    svg.innerHTML = edges + nodes;
+    $("tree-caption").textContent = selected
+      ? `The blue path shows the area at ${selected.clat.toFixed(2)}° N, ${Math.abs(selected.clon).toFixed(2)}° W, classified as ${CLASSES[selected.result.cls].name}. Pick another area on the map to compare.`
+      : "Pick an area on the map to trace its path through the tree.";
+  }
+
+  /* ---------------- Controls ---------------- */
+  document.querySelectorAll('input[name="base"]').forEach(r => r.addEventListener("change", () => {
+    map.removeLayer(currentBase);
+    currentBase = BASES[r.value].addTo(map);
+    renderLegend();
+  }));
+  dateInput.addEventListener("change", () => {
+    const d = dateInput.value;
+    if (!d) return;
+    lstLayer.setUrl(GIBS.lst.url(d));
+    trueLayer.setUrl(GIBS.true.url(d));
+    firesLayer.setParams({ TIME: d });
+    $("thumb-thermal").src = GIBS.lst.url(d).replace("{z}/{y}/{x}", "5/10/5");
+    $("thumb-true").src = GIBS.true.url(d).replace("{z}/{y}/{x}", "5/10/5");
+  });
+  const toggle = (id, layer) => $(id).addEventListener("change", e => {
+    e.target.checked ? layer.addTo(map) : map.removeLayer(layer);
+    renderLegend();
+  });
+  toggle("ov-risk", riskLayer);
+  toggle("ov-fires", firesLayer);
+  toggle("ov-labels", labelsLayer);
+  toggle("ov-border", borderLayer);
+  $("risk-opacity").addEventListener("input", e => {
+    $("risk-opacity-out").value = e.target.value + "%";
+    paintRange(e.target);
+    cells.forEach(c => c.rect.setStyle({ fillOpacity: e.target.value / 100 }));
+  });
+  document.querySelectorAll('input[name="preset"]').forEach(r => r.addEventListener("change", () => {
+    const p = PRESETS[r.value];
+    Object.keys(p).forEach(k => { sliders[k].value = p[k]; });
+    updateSliderLabels();
+    recompute();
+  }));
+  Object.values(sliders).forEach(s => s.addEventListener("input", () => {
+    document.querySelectorAll('input[name="preset"]').forEach(r => { r.checked = false; });
+    updateSliderLabels();
+    recompute();
+  }));
+
+  /* ---------------- Views (hash routing) ---------------- */
+  const VIEWS = ["map", "model", "about"];
+  function route() {
+    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "map";
+    VIEWS.forEach(name => { $("view-" + name).hidden = name !== v; });
+    document.querySelectorAll(".seg a").forEach(a => {
+      if (a.dataset.view === v) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+    document.querySelector("main").scrollTop = 0;
+    if (v === "map") setTimeout(() => map.invalidateSize(), 0);
+  }
+  window.addEventListener("hashchange", route);
+
+  /* ---------------- Start ---------------- */
+  paintRange($("risk-opacity"));
+  updateSliderLabels();
+  recompute();
+  renderLegend();
+  const kelowna = cellIndex.get(key(49.9, -119.5));
+  if (kelowna) { selectCell(kelowna); loadPlace(49.888, -119.496); }
+  route();
+})();
+</script>
+</body>
+</html>
