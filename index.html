@@ -384,6 +384,11 @@ input[type="date"] {
 .hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.04; }
 .hero .sub { font-size: clamp(19px, 2.3vw, 24px); line-height: 1.35; color: var(--ink-2); max-width: 34ch; letter-spacing: -0.015em; }
 .hero p.body { font-size: 17px; color: var(--ink-2); max-width: 62ch; }
+.byline { display: flex; align-items: center; gap: 12px; text-align: left; background: var(--surface); border-radius: 99px; padding: 8px 20px 8px 8px; margin-top: 4px; }
+.byline .avatar { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #FFB340, #FF6A00 55%, #E3122C); color: #fff; font-weight: 700; font-size: 16px; }
+.byline b { display: block; font-size: 17px; letter-spacing: -0.01em; }
+.byline span { color: var(--ink-2); font-size: 14px; }
+@media (max-width: 520px) { .byline { border-radius: 22px; } }
 .fire-text { background: linear-gradient(95deg, #FFB340 0%, #FF6A00 45%, #E3122C 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .block { display: grid; gap: 24px; }
 .block-head { display: grid; gap: 8px; max-width: 60ch; }
@@ -695,6 +700,13 @@ input[type="date"] {
         <p class="eyebrow">Science fair project</p>
         <h1><span class="fire-text">Prefire.</span></h1>
         <p class="sub">Predicting British Columbia wildfire risk to protect wildlife habitats.</p>
+        <div class="byline">
+          <span class="avatar" aria-hidden="true">JM</span>
+          <div>
+            <b>Jonathan Miao</b>
+            <span>Grade 9 · David Thompson Secondary School · Vancouver, BC</span>
+          </div>
+        </div>
         <p class="body">An AI-powered web tool using Decision Tree classification. It learns from historical air temperature, humidity, wind and rainfall to find the weather patterns that come before severe wildfires, then maps the areas of BC at risk so conservationists, researchers and authorities can act early.</p>
       </div>
 
@@ -730,17 +742,34 @@ input[type="date"] {
       </div>
 
       <div class="block">
-        <div class="block-head"><h2>Data sources.</h2></div>
-        <nav class="links" aria-label="Data sources">
-          <a href="https://www2.gov.bc.ca/gov/content/safety/wildfire-status" target="_blank" rel="noopener"><span>BC Wildfire Service<small>Historical fires and fire weather stations</small></span><span class="chev">›</span></a>
-          <a href="https://catalogue.data.gov.bc.ca/" target="_blank" rel="noopener"><span>BC Data Catalogue<small>Provincial boundaries and wildlife habitat</small></span><span class="chev">›</span></a>
-          <a href="https://climate.weather.gc.ca/" target="_blank" rel="noopener"><span>Environment and Climate Change Canada<small>Historical climate data</small></span><span class="chev">›</span></a>
-          <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noopener"><span>NASA FIRMS<small>Satellite fire detections</small></span><span class="chev">›</span></a>
-          <a href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener"><span>NASA Worldview<small>Land surface temperature and daily imagery</small></span><span class="chev">›</span></a>
+        <div class="block-head">
+          <h2>Data sources.</h2>
+          <p>Almost everything comes from official government sources, read live so the site stays current.</p>
+        </div>
+        <p class="sub-title">Wildfires</p>
+        <nav class="links" aria-label="Wildfire data sources">
+          <a href="https://catalogue.data.gov.bc.ca/dataset/bc-wildfire-fire-incident-locations-historical" target="_blank" rel="noopener"><span>BC Wildfire Fire Incident Locations – Historical<small>BC Wildfire Service · every BC fire since 2010, used to train the model</small></span><span class="chev">›</span></a>
+          <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noopener"><span>NASA FIRMS<small>Satellite fire detections (VIIRS) shown on the map</small></span><span class="chev">›</span></a>
+          <a href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener"><span>NASA Worldview / GIBS<small>Land surface temperature and daily satellite images</small></span><span class="chev">›</span></a>
+        </nav>
+        <p class="sub-title">Wildlife</p>
+        <nav class="links" aria-label="Wildlife data sources">
+          <a href="https://catalogue.data.gov.bc.ca/dataset/caribou-herd-locations-for-bc" target="_blank" rel="noopener"><span>Caribou Herd Locations for BC<small>Herd ranges, ecotype and risk status</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/dataset/wildlife-species-inventory-survey-summary-publicly-available" target="_blank" rel="noopener"><span>Wildlife Species Inventory – Survey Summary<small>Newest official caribou herd counts (up to 2025)</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/dataset/grizzly-bear-population-units" target="_blank" rel="noopener"><span>Grizzly Bear Population Units<small>Bear population areas and conservation concern</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/dataset/grizzly-bear-population-estimates" target="_blank" rel="noopener"><span>Grizzly Bear Population Estimates<small>2018 counts for all 55 BC grizzly populations</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/dataset/wildlife-habitat-areas-approved" target="_blank" rel="noopener"><span>Wildlife Habitat Areas – Approved<small>Habitat protected for species at risk</small></span><span class="chev">›</span></a>
+          <a href="https://www.inaturalist.org" target="_blank" rel="noopener"><span>iNaturalist<small>Research-grade sightings of mammals and birds</small></span><span class="chev">›</span></a>
+        </nav>
+        <p class="sub-title">People</p>
+        <nav class="links" aria-label="Population data sources">
+          <a href="https://catalogue.data.gov.bc.ca/dataset/population-age-distribution-summaries-for-bc-census-subdivisions-current-census" target="_blank" rel="noopener"><span>Census Subdivisions – 2021 Census<small>Population of each BC community</small></span><span class="chev">›</span></a>
+          <a href="https://catalogue.data.gov.bc.ca/dataset/population-age-distribution-summaries-for-bc-census-divisions-current-census" target="_blank" rel="noopener"><span>Census Divisions – 2021 Census<small>Population of each regional district</small></span><span class="chev">›</span></a>
+          <a href="https://www12.statcan.gc.ca/census-recensement/index-eng.cfm" target="_blank" rel="noopener"><span>Statistics Canada<small>Original source of all census data</small></span><span class="chev">›</span></a>
         </nav>
       </div>
 
-      <p class="credit">Map tiles: Esri, OpenStreetMap contributors, OpenTopoMap, NASA GIBS. Built with Leaflet.</p>
+      <p class="credit">Prefire by Jonathan Miao, David Thompson Secondary School, Vancouver, BC, 2026.<br>Map tiles: Esri, OpenStreetMap contributors, OpenTopoMap, NASA GIBS. Built with Leaflet.</p>
     </div>
   </section>
 </main>
