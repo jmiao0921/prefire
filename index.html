@@ -322,6 +322,12 @@ input[type="date"] {
 .search-list li small { display: block; font-size: 12px; color: var(--ink-2); }
 .search-list li[aria-selected="true"], .search-list li:hover { background: var(--accent-soft); }
 .search-list li.none { cursor: default; color: var(--ink-2); background: none; }
+.locate-btn { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-right: -6px; border: 0; border-radius: 8px; background: none; color: var(--accent); cursor: pointer; }
+.locate-btn svg { width: 18px; height: 18px; }
+.locate-btn:hover { background: var(--accent-soft); }
+.locate-btn[aria-busy="true"] { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.find-status { margin: 0; font-size: 12.5px; color: var(--ink-2); padding: 0 4px; }
 .radius-row { display: grid; gap: 6px; }
 .radius-label { font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 0 2px; }
 .area-sum { display: grid; gap: 10px; }
@@ -540,8 +546,12 @@ input[type="date"] {
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           <input type="search" id="search" placeholder="Type an address or town in BC" autocomplete="off" spellcheck="false"
             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-list" aria-label="Search for an address or town">
+          <button type="button" class="locate-btn" id="locate" aria-label="Use my current location" title="Use my current location">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5 3.5 10.6l7.1 2.8 2.8 7.1z" fill="currentColor"/></svg>
+          </button>
           <ul id="search-list" class="search-list glass" role="listbox" hidden></ul>
         </div>
+        <p class="find-status" id="find-status" aria-live="polite" hidden></p>
         <div class="radius-row">
           <span class="radius-label">Show what's within</span>
           <div class="seg-sm" id="radius-seg" role="group" aria-label="Search area">
@@ -1407,6 +1417,35 @@ input[type="date"] {
     if (li) { e.preventDefault(); pickResult(+li.dataset.i); }
   });
   searchBox.addEventListener("blur", () => setTimeout(closeSearch, 150));
+
+  /* Current location: the browser asks the visitor for permission first. */
+  const locateBtn = $("locate"), findStatus = $("find-status");
+  const setFindStatus = msg => { findStatus.textContent = msg || ""; findStatus.hidden = !msg; };
+  locateBtn.addEventListener("click", () => {
+    if (!("geolocation" in navigator)) { setFindStatus("This browser can't share your location."); return; }
+    if (locateBtn.getAttribute("aria-busy") === "true") return;
+    locateBtn.setAttribute("aria-busy", "true");
+    setFindStatus("Finding your location…");
+    navigator.geolocation.getCurrentPosition(pos => {
+      locateBtn.removeAttribute("aria-busy");
+      const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+      const near = cellIndex.get(key(lat, lon)) || nearestCell(lat, lon);
+      if (!cellIndex.get(key(lat, lon)) && kmBetween(lat, lon, near.clat, near.clon) > 30) {
+        setFindStatus("You seem to be outside British Columbia, so there's no BC data for your location.");
+        return;
+      }
+      setFindStatus(accuracy > 2000 ? `Showing your approximate location (within about ${Math.round(accuracy / 1000)} km).` : "");
+      searchBox.value = "";
+      markCity(null);
+      goPlace(lat, lon, { label: "Your location", fit: true });
+    }, err => {
+      locateBtn.removeAttribute("aria-busy");
+      setFindStatus(err.code === 1
+        ? "Location is blocked. Allow location for this site in your browser settings, then try again."
+        : "Couldn't find your location. Try again, or type an address instead.");
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  });
+  searchBox.addEventListener("focus", () => setFindStatus(""));
 
   /* ---------------- Wildlife and people at the clicked spot ----------------
      Live data from the BC Data Catalogue (openmaps.gov.bc.ca) and iNaturalist. */
