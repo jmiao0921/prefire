@@ -1306,7 +1306,8 @@ input[type="date"] {
   function drawPlace(fit) {
     radiusLayer.clearLayers();
     if (!place) return;
-    L.circleMarker([place.lat, place.lon], { renderer: canvas, radius: 7, color: "#fff", weight: 3, fillColor: "#0A84FF", fillOpacity: 1, interactive: false }).addTo(radiusLayer);
+    // The blue dot only marks the visitor's own location.
+    if (place.mine) L.circleMarker([place.lat, place.lon], { renderer: canvas, radius: 7, color: "#fff", weight: 3, fillColor: "#0A84FF", fillOpacity: 1, interactive: false }).addTo(radiusLayer);
     if (radiusKm) {
       const circle = L.circle([place.lat, place.lon], { renderer: canvas, radius: radiusKm * 1000, color: "#fff", weight: 3, fillColor: "#0A84FF", fillOpacity: 0.1, interactive: false }).addTo(radiusLayer);
       if (fit) map.fitBounds(circle.getBounds(), { paddingTopLeft: [panelPad() + 30, 30], paddingBottomRight: [30, 30], animate: false });
@@ -1317,7 +1318,7 @@ input[type="date"] {
       map.setView(target, Z, { animate: false });
     }
   }
-  function goPlace(lat, lon, { label = "", fit = false, scroll = true } = {}) {
+  function goPlace(lat, lon, { label = "", fit = false, scroll = true, mine = false } = {}) {
     const c = cellIndex.get(key(lat, lon)) || (label ? nearestCell(lat, lon) : null);
     if (!c) {
       const msg = `<p class="empty">That spot is outside BC. Tap anywhere inside the province.</p>`;
@@ -1326,7 +1327,7 @@ input[type="date"] {
       $("people-card").innerHTML = msg;
       return;
     }
-    place = { lat, lon, label };
+    place = { lat, lon, label, mine };
     drawPlace(fit);
     selectCell(c);
     loadPlace(lat, lon);
@@ -1344,7 +1345,7 @@ input[type="date"] {
   document.querySelectorAll("#radius-seg button").forEach(b => b.addEventListener("click", () => {
     radiusKm = +b.dataset.km;
     document.querySelectorAll("#radius-seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
-    if (place) goPlace(place.lat, place.lon, { label: place.label, fit: true, scroll: false });
+    if (place) goPlace(place.lat, place.lon, { label: place.label, fit: true, scroll: false, mine: place.mine });
   }));
 
   /* Address search: BC Address Geocoder (BC government, free, no key needed). */
@@ -1437,7 +1438,7 @@ input[type="date"] {
       setFindStatus(accuracy > 2000 ? `Showing your approximate location (within about ${Math.round(accuracy / 1000)} km).` : "");
       searchBox.value = "";
       markCity(null);
-      goPlace(lat, lon, { label: "Your location", fit: true });
+      goPlace(lat, lon, { label: "Your location", fit: true, mine: true });
     }, err => {
       locateBtn.removeAttribute("aria-busy");
       setFindStatus(err.code === 1
