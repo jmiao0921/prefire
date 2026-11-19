@@ -419,6 +419,7 @@ input[type="date"] {
 #tree .q2 { fill: var(--ink-2); font-weight: 500; font-size: 12.5px; }
 #tree .edge-label { fill: var(--ink-2); font-size: 11px; font-weight: 500; }
 #tree .leaf text { fill: #fff; }
+#tree .leaf .leaf-sub { font-size: 11.5px; font-weight: 500; opacity: 0.92; }
 #tree .leaf.dark-text text { fill: #1D1D1F; }
 #tree .leaf.on rect { stroke: var(--accent); stroke-width: 3.5; }
 .tree-caption { color: var(--ink-2); font-size: 14px; padding: 0 4px; }
@@ -499,7 +500,7 @@ input[type="date"] {
         <p class="lead">Predicted wildfire risk from weather conditions.</p>
         <p class="note">
           <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-          <span>Sketch version. Risk uses simulated weather and a placeholder Decision Tree until the trained model is connected.</span>
+          <span>Risk comes from a Decision Tree trained on 3,000 real BC fire and weather records (2010–2025), run on real weather for the date you pick.</span>
         </p>
       </header>
 
@@ -552,21 +553,23 @@ input[type="date"] {
           </label>
           <div class="row">
             <span class="icon i-pink"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="#fff" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
-            <label for="gibs-date" class="row-label">Satellite date</label>
-            <input type="date" id="gibs-date" value="2023-08-18" min="2012-01-20">
+            <label for="gibs-date" class="row-label">Date</label>
+            <input type="date" id="gibs-date" min="2012-01-20">
           </div>
         </div>
-        <p class="sec-foot">The date sets Thermal, Smoke and Active fires. 18 Aug 2023 was during the Okanagan and Shuswap fires.</p>
+        <p class="sec-foot">The date sets the weather for the risk map, and the Thermal, Smoke and Active fires layers. Satellite images appear about 2 days later.</p>
       </section>
 
       <section class="sec">
-        <h2 class="sec-title">Weather scenario</h2>
-        <div class="chips" role="radiogroup" aria-label="Weather preset">
-          <input type="radio" name="preset" id="p-typical" value="typical" checked><label for="p-typical">Typical July<small>Normal summer day</small></label>
-          <input type="radio" name="preset" id="p-heatdome" value="heatdome"><label for="p-heatdome">Heat dome<small>Like June 2021</small></label>
-          <input type="radio" name="preset" id="p-lightning" value="lightning"><label for="p-lightning">Hot &amp; windy<small>Dry, gusty week</small></label>
-          <input type="radio" name="preset" id="p-wet" value="wet"><label for="p-wet">Wet spring<small>Cool and rainy</small></label>
+        <h2 class="sec-title">Weather</h2>
+        <div class="chips" role="radiogroup" aria-label="Weather date">
+          <input type="radio" name="preset" id="p-today" value="today" checked><label for="p-today">Today<small>Live forecast</small></label>
+          <input type="radio" name="preset" id="p-heatdome" value="2021-06-29"><label for="p-heatdome">Heat dome<small>29 June 2021</small></label>
+          <input type="radio" name="preset" id="p-fires" value="2023-08-17"><label for="p-fires">Shuswap fires<small>17 Aug 2023</small></label>
+          <input type="radio" name="preset" id="p-wet" value="2022-06-20"><label for="p-wet">Wet June<small>20 June 2022</small></label>
         </div>
+        <p class="sec-foot" id="wx-status">Loading real weather…</p>
+        <h2 class="sec-title">What if?</h2>
         <div class="list">
           <div class="row row-slider">
             <span class="icon i-red"><svg viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 0 1 4 0v9.3a4.2 4.2 0 1 1-4 0z" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="17.3" r="1.8" fill="#fff"/></svg></span>
@@ -593,6 +596,7 @@ input[type="date"] {
             <input type="range" id="s-rain" min="0" max="3" step="0.1" value="1">
           </div>
         </div>
+        <p class="sec-foot">Change the real weather to test what would happen. <button class="text-btn" type="button" id="wx-reset">Reset</button></p>
       </section>
 
       <section class="sec">
@@ -629,13 +633,13 @@ input[type="date"] {
     <div class="wrap">
       <div class="hero">
         <p class="eyebrow">How it works</p>
-        <h1>Four questions.<br>One prediction.</h1>
-        <p class="sub">A Decision Tree asks yes-or-no questions about the weather until it reaches a risk level.</p>
+        <h1>Three questions.<br>One prediction.</h1>
+        <p class="sub">A Decision Tree asks yes-or-no questions about the weather until it reaches a risk level. This tree learned its questions from 3,000 real days in BC.</p>
       </div>
 
       <div class="block">
         <div class="tile tree-tile">
-          <span class="tag">Placeholder tree · will be replaced by the trained model</span>
+          <span class="tag">Trained model · 3,000 BC examples, 2010–2025</span>
           <div class="tree-scroll"><svg id="tree" role="img" aria-label="Decision tree diagram"></svg></div>
         </div>
         <p class="tree-caption" id="tree-caption"></p>
@@ -652,28 +656,28 @@ input[type="date"] {
             <h3>Air temperature</h3>
             <span class="unit">°C, daily maximum</span>
             <p>Hot air dries out fuels like needles, grass and dead wood.</p>
-            <p class="src">Source: Environment and Climate Change Canada</p>
+            <p class="src">Source: Open-Meteo (ERA5 for training, live forecast for today)</p>
           </article>
           <article class="tile">
             <span class="icon i-cyan"><svg viewBox="0 0 24 24"><path d="M12 3s6.5 7.2 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10.2 12 3 12 3z" fill="#fff"/></svg></span>
             <h3>Relative humidity</h3>
-            <span class="unit">%, afternoon</span>
+            <span class="unit">%, daily minimum</span>
             <p>Dry air pulls moisture out of fuels so they catch fire easily.</p>
-            <p class="src">Source: ECCC and BC Wildfire Service stations</p>
+            <p class="src">Source: Open-Meteo (ERA5 for training, live forecast for today)</p>
           </article>
           <article class="tile">
             <span class="icon i-teal"><svg viewBox="0 0 24 24"><path d="M3 9h11.5a3 3 0 1 0-3-3M3 14h15a3 3 0 1 1-3 3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
             <h3>Wind speed</h3>
-            <span class="unit">km/h, at 10 m</span>
+            <span class="unit">km/h, daily maximum at 10 m</span>
             <p>Wind feeds oxygen to a fire and carries embers ahead of it.</p>
-            <p class="src">Source: ECCC and BC Wildfire Service stations</p>
+            <p class="src">Source: Open-Meteo (ERA5 for training, live forecast for today)</p>
           </article>
           <article class="tile">
             <span class="icon i-blue"><svg viewBox="0 0 24 24"><path d="M7.5 14.5a4 4 0 0 1 .3-8 5 5 0 0 1 9.4 1.6 3.2 3.2 0 0 1-.2 6.4z" fill="#fff"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
             <h3>Rainfall</h3>
             <span class="unit">mm, past 7 days</span>
             <p>Recent rain keeps fuels wet. A dry week lets them cure.</p>
-            <p class="src">Source: Environment and Climate Change Canada</p>
+            <p class="src">Source: Open-Meteo (ERA5 for training, live forecast for today)</p>
           </article>
         </div>
       </div>
@@ -681,13 +685,13 @@ input[type="date"] {
       <div class="block">
         <div class="block-head">
           <h2>How well it works.</h2>
-          <p>These numbers are filled in after the model is trained and tested on years it has not seen.</p>
+          <p>Tested on examples the tree never saw while learning, using 5-fold cross-validation: the data is split into 5 parts, and each part takes a turn as the hidden test.</p>
         </div>
         <div class="tiles">
-          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Accuracy</p><p>Share of test areas classified correctly.</p></article>
-          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Precision</p><p>When it says High or Extreme, how often it is right.</p></article>
-          <article class="tile"><span class="kpi">—</span><p class="kpi-label">Recall</p><p>Of the truly dangerous areas, how many it caught.</p></article>
-          <article class="tile"><span class="kpi set">4</span><p class="kpi-label">Questions, at most</p><p>Depth of the placeholder tree, with 11 possible outcomes.</p></article>
+          <article class="tile"><span class="kpi set">69.2%</span><p class="kpi-label">Accuracy</p><p>Days it sorted correctly into "before a big fire" or "not". Guessing gets 50%.</p></article>
+          <article class="tile"><span class="kpi set">68.5%</span><p class="kpi-label">Big fires caught</p><p>Of the days before a fire grew to 10 ha or more, how many the tree flagged.</p></article>
+          <article class="tile"><span class="kpi set">Rain</span><p class="kpi-label">Most important clue</p><p>Rain over the past 7 days is the tree's first question. A dry week is the strongest warning sign.</p></article>
+          <article class="tile"><span class="kpi set">3</span><p class="kpi-label">Questions, at most</p><p>Trees from 2 to 8 questions deep were tested. 3 scored best; deeper trees overfit.</p></article>
         </div>
       </div>
     </div>
@@ -736,7 +740,7 @@ input[type="date"] {
           <li><b>Collect</b><span>Historical weather and wildfire records for BC.</span></li>
           <li><b>Clean</b><span>Match weather readings to fire locations and dates.</span></li>
           <li><b>Train</b><span>Fit a Decision Tree on temperature, humidity, wind and rain.</span></li>
-          <li><b>Test</b><span>Measure accuracy on years the model has not seen.</span></li>
+          <li><b>Test</b><span>Measure accuracy on examples the model has not seen.</span></li>
           <li><b>Map</b><span>Run the model across BC and show the results here.</span></li>
         </ol>
       </div>
@@ -751,6 +755,10 @@ input[type="date"] {
           <a href="https://catalogue.data.gov.bc.ca/dataset/bc-wildfire-fire-incident-locations-historical" target="_blank" rel="noopener"><span>BC Wildfire Fire Incident Locations – Historical<small>BC Wildfire Service · every BC fire since 2010, used to train the model</small></span><span class="chev">›</span></a>
           <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noopener"><span>NASA FIRMS<small>Satellite fire detections (VIIRS) shown on the map</small></span><span class="chev">›</span></a>
           <a href="https://worldview.earthdata.nasa.gov/" target="_blank" rel="noopener"><span>NASA Worldview / GIBS<small>Land surface temperature and daily satellite images</small></span><span class="chev">›</span></a>
+        </nav>
+        <p class="sub-title">Weather</p>
+        <nav class="links" aria-label="Weather data sources">
+          <a href="https://open-meteo.com/" target="_blank" rel="noopener"><span>Open-Meteo<small>Historical weather (ERA5) used to train the model, and the live forecast used on the map</small></span><span class="chev">›</span></a>
         </nav>
         <p class="sub-title">Wildlife</p>
         <nav class="links" aria-label="Wildlife data sources">
@@ -769,7 +777,7 @@ input[type="date"] {
         </nav>
       </div>
 
-      <p class="credit">Prefire by Jonathan Miao, David Thompson Secondary School, Vancouver, BC, 2026.<br>Map tiles: Esri, OpenStreetMap contributors, OpenTopoMap, NASA GIBS. Built with Leaflet.</p>
+      <p class="credit">Prefire by Jonathan Miao, David Thompson Secondary School, Vancouver, BC, 2026.<br>Weather: Open-Meteo. Map tiles: Esri, OpenStreetMap contributors, OpenTopoMap, NASA GIBS. Built with Leaflet.</p>
     </div>
   </section>
 </main>
@@ -793,22 +801,20 @@ input[type="date"] {
     rain: { label: "Rain, 7 days", short: "Rain (7 days)", unit: "mm" },
   };
 
-  /* ---------------- Placeholder Decision Tree ----------------
+  /* ---------------- Trained Decision Tree ----------------
+     Trained in Google Colab (scikit-learn, max_depth=3, min_samples_leaf=20) on 3,000 real BC examples, 2010–2025:
+     1,500 days before fires that grew to 10 ha or more, and 1,500 matched days without one. Weather: Open-Meteo ERA5.
      Internal node: { f: feature, t: threshold, l: node if value <= t, r: node if value > t }
-     Leaf: { c: class index }. Replace with the tree exported from the trained model. */
-  const TREE = { f: "rain", t: 4.5,
-    l: { f: "rh", t: 32,
-      l: { f: "temp", t: 27.5,
-        l: { f: "wind", t: 18, l: { c: 2 }, r: { c: 3 } },
-        r: { c: 3 } },
-      r: { f: "wind", t: 22,
-        l: { f: "temp", t: 24, l: { c: 1 }, r: { c: 2 } },
-        r: { c: 2 } } },
-    r: { f: "rain", t: 15,
-      l: { f: "rh", t: 40,
-        l: { f: "temp", t: 26, l: { c: 1 }, r: { c: 2 } },
-        r: { f: "wind", t: 25, l: { c: 0 }, r: { c: 1 } } },
-      r: { c: 0 } } };
+     Leaf: { p: share of training examples in this leaf that came before a big fire, c: risk class from p }. */
+  const riskClass = p => p >= 0.7 ? 3 : p >= 0.5 ? 2 : p >= 0.35 ? 1 : 0;
+  const leaf = p => ({ p, c: riskClass(p) });
+  const TREE = { f: "rain", t: 9.55,
+    l: { f: "temp", t: 21.95,
+      l: { f: "rh", t: 34.5, l: leaf(0.649), r: leaf(0.435) },
+      r: { f: "wind", t: 7.35, l: leaf(0.584), r: leaf(0.759) } },
+    r: { f: "temp", t: 21.55,
+      l: { f: "rain", t: 14.85, l: leaf(0.311), r: leaf(0.159) },
+      r: { f: "rain", t: 31.25, l: leaf(0.436), r: leaf(0.140) } } };
 
   function predict(x) {
     const path = [];
@@ -906,13 +912,92 @@ input[type="date"] {
     }
   }
 
-  /* ---------------- Scenario ---------------- */
-  const PRESETS = {
-    typical:   { temp: 0,  rh: 0,   wind: 1.0, rain: 1.0 },
-    heatdome:  { temp: 10, rh: -12, wind: 1.0, rain: 0.1 },
-    lightning: { temp: 4,  rh: -8,  wind: 1.6, rain: 0.3 },
-    wet:       { temp: -5, rh: 15,  wind: 0.8, rain: 2.5 },
-  };
+  /* ---------------- Real weather (Open-Meteo) ----------------
+     Same four numbers the tree was trained on: that day's max temperature, min humidity, max wind,
+     and total rain over the 7 days before. Fetched on a 1° grid and blended (bilinear) onto the 0.4° cells. */
+  const TODAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Vancouver" }).format(new Date());
+  const addDays = (d, n) => { const t = new Date(d + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 864e5);
+  const nodeKey = (la, lo) => la + "," + lo;
+  const NODES = new Map();
+  cells.forEach(c => {
+    const a = Math.floor(c.clat), b = Math.floor(c.clon);
+    c.nodes = [[a, b], [a + 1, b], [a, b + 1], [a + 1, b + 1]].map(([la, lo]) => {
+      const k = nodeKey(la, lo);
+      if (!NODES.has(k)) NODES.set(k, { lat: la, lon: lo });
+      return k;
+    });
+  });
+  const wxCache = new Map();
+  async function fetchWeather(date) {
+    if (wxCache.has(date)) return wxCache.get(date);
+    const recent = daysBetween(date, TODAY) <= 80;
+    const base = recent ? "https://api.open-meteo.com/v1/forecast" : "https://archive-api.open-meteo.com/v1/archive";
+    const list = [...NODES.values()];
+    const chunks = [];
+    for (let i = 0; i < list.length; i += 100) chunks.push(list.slice(i, i + 100));
+    const results = await Promise.all(chunks.map(async ch => {
+      const q = new URLSearchParams({
+        latitude: ch.map(n => n.lat).join(","), longitude: ch.map(n => n.lon).join(","),
+        start_date: addDays(date, -7), end_date: date, timezone: "America/Vancouver",
+        daily: "temperature_2m_max,relative_humidity_2m_min,wind_speed_10m_max,precipitation_sum",
+      });
+      const res = await fetch(base + "?" + q);
+      if (!res.ok) throw new Error("Weather service error " + res.status);
+      const json = await res.json();
+      return Array.isArray(json) ? json : [json];
+    }));
+    const wx = new Map();
+    let i = 0;
+    results.flat().forEach(r => {
+      const n = list[i++], d = r.daily || {};
+      const t = d.temperature_2m_max || [], h = d.relative_humidity_2m_min || [], w = d.wind_speed_10m_max || [], p = d.precipitation_sum || [];
+      const rainDays = p.slice(0, 7);
+      const ok = [t[7], h[7], w[7]].every(v => typeof v === "number") && rainDays.length === 7 && rainDays.every(v => typeof v === "number");
+      if (ok) wx.set(nodeKey(n.lat, n.lon), { temp: t[7], rh: h[7], wind: w[7], rain: rainDays.reduce((a, b) => a + b, 0) });
+    });
+    if (wx.size < NODES.size * 0.5) throw new Error("Weather data not available for this date yet");
+    wxCache.set(date, wx);
+    return wx;
+  }
+  function cellWeather(c, wx) {
+    const fy = c.clat - Math.floor(c.clat), fx = c.clon - Math.floor(c.clon);
+    const weights = [(1 - fy) * (1 - fx), fy * (1 - fx), (1 - fy) * fx, fy * fx];
+    const out = { temp: 0, rh: 0, wind: 0, rain: 0 };
+    let wsum = 0;
+    c.nodes.forEach((k, i) => {
+      const v = wx.get(k);
+      if (!v) return;
+      wsum += weights[i];
+      for (const f in out) out[f] += v[f] * weights[i];
+    });
+    if (!wsum) return null;
+    for (const f in out) out[f] /= wsum;
+    return out;
+  }
+  const fmtDate = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  let wxDate = TODAY, wxToken = 0;
+  async function loadWeather(date) {
+    const token = ++wxToken;
+    wxDate = date;
+    const status = $("wx-status");
+    status.textContent = `Loading real weather for ${fmtDate(date)}…`;
+    try {
+      const wx = await fetchWeather(date);
+      if (token !== wxToken) return;
+      cells.forEach(c => { c.base = cellWeather(c, wx) || baseWeather(c.clat, c.clon); });
+      const month = +date.slice(5, 7);
+      status.textContent = `Real weather for ${fmtDate(date)}${date === TODAY ? " (today's forecast)" : ""}, from Open-Meteo.` +
+        (month < 4 || month > 10 ? " Note: the tree learned from fire season (April to October), so winter results are less reliable." : "");
+    } catch (e) {
+      if (token !== wxToken) return;
+      cells.forEach(c => { c.base = baseWeather(c.clat, c.clon); });
+      status.textContent = `Couldn't load real weather (${e.message}). Showing a simulated summer day instead.`;
+    }
+    recompute();
+  }
+
+  /* ---------------- What-if adjustments ---------------- */
   const $ = id => document.getElementById(id);
   const sliders = { temp: $("s-temp"), rh: $("s-rh"), wind: $("s-wind"), rain: $("s-rain") };
   const scenario = () => ({ temp: +sliders.temp.value, rh: +sliders.rh.value, wind: +sliders.wind.value, rain: +sliders.rain.value });
@@ -959,12 +1044,16 @@ input[type="date"] {
   };
   const gibsAttr = 'Imagery: <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener">NASA GIBS</a>';
   const dateInput = $("gibs-date");
-  dateInput.max = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+  dateInput.max = TODAY;
+  dateInput.value = TODAY;
+  // NASA satellite images arrive about 2 days late, so recent dates show the newest available day.
+  const SAT_LATEST = addDays(TODAY, -2);
+  const satDate = d => d > SAT_LATEST ? SAT_LATEST : d;
 
   const esriAttr = "Tiles © Esri";
   const DARK_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
-  const lstLayer = L.tileLayer(GIBS.lst.url(dateInput.value), { maxNativeZoom: GIBS.lst.maxNativeZoom, maxZoom: 12, attribution: gibsAttr, opacity: 0.9 });
-  const trueLayer = L.tileLayer(GIBS.true.url(dateInput.value), { maxNativeZoom: GIBS.true.maxNativeZoom, maxZoom: 13, attribution: gibsAttr });
+  const lstLayer = L.tileLayer(GIBS.lst.url(satDate(dateInput.value)), { maxNativeZoom: GIBS.lst.maxNativeZoom, maxZoom: 12, attribution: gibsAttr, opacity: 0.9 });
+  const trueLayer = L.tileLayer(GIBS.true.url(satDate(dateInput.value)), { maxNativeZoom: GIBS.true.maxNativeZoom, maxZoom: 13, attribution: gibsAttr });
 
   const BASES = {
     satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: esriAttr + ", Maxar, Earthstar Geographics" }),
@@ -980,7 +1069,7 @@ input[type="date"] {
   // Fire detections are vector data at NASA, so request them through GIBS WMS, which draws them as PNG.
   const firesLayer = L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi", {
     layers: "VIIRS_SNPP_Thermal_Anomalies_375m_All", format: "image/png", transparent: true,
-    TIME: dateInput.value, tileSize: 512, attribution: gibsAttr, zIndex: 640,
+    TIME: satDate(dateInput.value), tileSize: 512, attribution: gibsAttr, zIndex: 640,
   });
   const borderLayer = L.polygon(BC_POLYS, { renderer: canvas, color: "#ffffff", weight: 2, dashArray: "6 5", fill: false, interactive: false, opacity: 0.85 });
 
@@ -1067,6 +1156,7 @@ input[type="date"] {
       </div>
       <div class="path-title">How the tree decided</div>
       <ol class="path">${steps}</ol>
+      <p class="cell-sub">In training, ${Math.round(r.path[r.path.length - 1].node.p * 100)}% of days that ended in this box came before a fire that grew to 10 ha or more.</p>
       <button class="text-btn" type="button" id="see-tree">View on the tree ›</button>`;
     $("see-tree").onclick = () => { location.hash = "model"; };
     renderTree();
@@ -1282,7 +1372,7 @@ input[type="date"] {
   function renderTree() {
     const svg = $("tree");
     const onSet = new Set(selected ? selected.result.path.map(p => p.node) : []);
-    const COLW = 104, ROWH = 100, PAD = 24, NW = 150, NH = 48, LW = 92, LH = 34;
+    const COLW = 116, ROWH = 100, PAD = 24, NW = 150, NH = 48, LW = 104, LH = 48;
     let leafCount = 0, maxDepth = 0;
     (function layout(n, d) {
       n._d = d; maxDepth = Math.max(maxDepth, d);
@@ -1299,7 +1389,7 @@ input[type="date"] {
       const on = onSet.has(n) ? " on" : "";
       if (n.c !== undefined) {
         const k = CLASSES[n.c];
-        nodes += `<g class="leaf${k.darkText ? " dark-text" : ""}${on}"><rect x="${x - LW / 2}" y="${y}" width="${LW}" height="${LH}" rx="17" fill="${k.color}"/><text x="${x}" y="${y + LH / 2 + 4.5}" text-anchor="middle">${k.name}</text></g>`;
+        nodes += `<g class="leaf${k.darkText ? " dark-text" : ""}${on}"><rect x="${x - LW / 2}" y="${y}" width="${LW}" height="${LH}" rx="16" fill="${k.color}"/><text x="${x}" y="${y + 20}" text-anchor="middle">${k.name}</text><text class="leaf-sub" x="${x}" y="${y + 37}" text-anchor="middle">${Math.round(n.p * 100)}% big fires</text></g>`;
         return;
       }
       const F = FEATURES[n.f];
@@ -1317,6 +1407,7 @@ input[type="date"] {
     $("tree-caption").textContent = selected
       ? `The blue path shows the area at ${selected.clat.toFixed(2)}° N, ${Math.abs(selected.clon).toFixed(2)}° W, classified as ${CLASSES[selected.result.cls].name}. Pick another area on the map to compare.`
       : "Pick an area on the map to trace its path through the tree.";
+    $("tree-caption").textContent += " Each end box shows what share of the training days that landed there came before a big fire: under 35% is Low, 35–50% Moderate, 50–70% High, and 70% or more Extreme.";
   }
 
   /* ---------------- Controls ---------------- */
@@ -1325,15 +1416,22 @@ input[type="date"] {
     currentBase = BASES[r.value].addTo(map);
     renderLegend();
   }));
-  dateInput.addEventListener("change", () => {
-    const d = dateInput.value;
-    if (!d) return;
-    lstLayer.setUrl(GIBS.lst.url(d));
-    trueLayer.setUrl(GIBS.true.url(d));
-    firesLayer.setParams({ TIME: d });
-    $("thumb-thermal").src = GIBS.lst.url(d).replace("{z}/{y}/{x}", "5/10/5");
-    $("thumb-true").src = GIBS.true.url(d).replace("{z}/{y}/{x}", "5/10/5");
-  });
+  function setDate(date) {
+    if (!date) return;
+    if (date > TODAY) date = TODAY;
+    dateInput.value = date;
+    const s = satDate(date);
+    lstLayer.setUrl(GIBS.lst.url(s));
+    trueLayer.setUrl(GIBS.true.url(s));
+    firesLayer.setParams({ TIME: s });
+    $("thumb-thermal").src = GIBS.lst.url(s).replace("{z}/{y}/{x}", "5/10/5");
+    $("thumb-true").src = GIBS.true.url(s).replace("{z}/{y}/{x}", "5/10/5");
+    document.querySelectorAll('input[name="preset"]').forEach(r => {
+      r.checked = (r.value === "today" ? TODAY : r.value) === date;
+    });
+    loadWeather(date);
+  }
+  dateInput.addEventListener("change", () => setDate(dateInput.value));
   const toggle = (id, layer) => $(id).addEventListener("change", e => {
     e.target.checked ? layer.addTo(map) : map.removeLayer(layer);
     renderLegend();
@@ -1348,16 +1446,17 @@ input[type="date"] {
     cells.forEach(c => c.rect.setStyle({ fillOpacity: e.target.value / 100 }));
   });
   document.querySelectorAll('input[name="preset"]').forEach(r => r.addEventListener("change", () => {
-    const p = PRESETS[r.value];
-    Object.keys(p).forEach(k => { sliders[k].value = p[k]; });
-    updateSliderLabels();
-    recompute();
+    setDate(r.value === "today" ? TODAY : r.value);
   }));
   Object.values(sliders).forEach(s => s.addEventListener("input", () => {
-    document.querySelectorAll('input[name="preset"]').forEach(r => { r.checked = false; });
     updateSliderLabels();
     recompute();
   }));
+  $("wx-reset").addEventListener("click", () => {
+    sliders.temp.value = 0; sliders.rh.value = 0; sliders.wind.value = 1; sliders.rain.value = 1;
+    updateSliderLabels();
+    recompute();
+  });
 
   /* ---------------- Views (hash routing) ---------------- */
   const VIEWS = ["map", "model", "about"];
@@ -1381,6 +1480,7 @@ input[type="date"] {
   const kelowna = cellIndex.get(key(49.9, -119.5));
   if (kelowna) { selectCell(kelowna); loadPlace(49.888, -119.496); }
   route();
+  loadWeather(TODAY);
 })();
 </script>
 </body>
