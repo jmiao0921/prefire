@@ -313,6 +313,10 @@ input[type="date"] {
 .path .no { background: var(--fill); color: var(--ink-2); }
 .text-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 500; justify-self: start; }
 .text-btn:hover { text-decoration: underline; }
+.city-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.city-chips button { border: 0; background: var(--cell); color: var(--ink); font: 500 13.5px/1.2 var(--font); padding: 8px 14px; border-radius: 99px; cursor: pointer; transition: background 0.15s ease; }
+.city-chips button:hover { background: var(--fill-strong); }
+.city-chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .area-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; border: 0; background: var(--accent-soft); color: var(--accent); font: 500 12.5px/1.2 var(--font); padding: 5px 10px 5px 8px; border-radius: 99px; cursor: pointer; justify-self: start; }
 .area-btn svg { width: 14px; height: 14px; flex: none; }
 .area-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
@@ -514,6 +518,18 @@ input[type="date"] {
           <span>Risk comes from a Decision Tree trained on 3,000 real BC fire and weather records (2010–2025), run on real weather for the date you pick.</span>
         </p>
       </header>
+
+      <section class="sec">
+        <h2 class="sec-title">Go to a city</h2>
+        <div class="city-chips" role="group" aria-label="Go to a city">
+          <button type="button" data-lat="49.2827" data-lon="-123.1207">Vancouver</button>
+          <button type="button" data-lat="48.4284" data-lon="-123.3656">Victoria</button>
+          <button type="button" data-lat="49.8880" data-lon="-119.4960">Kelowna</button>
+          <button type="button" data-lat="50.6745" data-lon="-120.3273">Kamloops</button>
+          <button type="button" data-lat="53.9171" data-lon="-122.7497">Prince George</button>
+          <button type="button" data-lat="56.2465" data-lon="-120.8476">Fort St. John</button>
+        </div>
+      </section>
 
       <section class="sec">
         <h2 class="sec-title">Map style</h2>
@@ -1193,15 +1209,44 @@ input[type="date"] {
     renderCell(c);
   }
 
+  function showSelected() {
+    if (window.matchMedia("(min-width: 821px)").matches) {
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      $("selected-sec").scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    }
+  }
+  const cityButtons = document.querySelectorAll(".city-chips button");
+  const markCity = btn => cityButtons.forEach(b => b.setAttribute("aria-pressed", b === btn));
+  // Coastal cities can sit right on the simplified BC outline, so fall back to the nearest grid cell.
+  function nearestCell(lat, lon) {
+    let best = null, bd = Infinity;
+    cells.forEach(c => {
+      const d = (c.clat - lat) ** 2 + ((c.clon - lon) * Math.cos(lat * Math.PI / 180)) ** 2;
+      if (d < bd) { bd = d; best = c; }
+    });
+    return best;
+  }
+  cityButtons.forEach(btn => btn.addEventListener("click", () => {
+    const lat = +btn.dataset.lat, lon = +btn.dataset.lon;
+    const c = cellIndex.get(key(lat, lon)) || nearestCell(lat, lon);
+    markCity(btn);
+    const panel = window.matchMedia("(min-width: 821px)").matches && map.getSize().x > 900 ? 400 : 0;
+    // Centre the city in the part of the map not covered by the side panel.
+    const Z = 8;
+    const target = map.unproject(map.project([lat, lon], Z).subtract([panel / 2, 0]), Z);
+    map.setView(target, Z, { animate: false });
+    selectCell(c);
+    loadPlace(lat, lon);
+    showSelected();
+  }));
+
   map.on("click", e => {
+    markCity(null);
     const c = cellIndex.get(key(e.latlng.lat, e.latlng.lng));
     if (c) {
       selectCell(c);
       loadPlace(e.latlng.lat, e.latlng.lng);
-      if (window.matchMedia("(min-width: 821px)").matches) {
-        const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        $("selected-sec").scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
-      }
+      showSelected();
     } else {
       const msg = `<p class="empty">That spot is outside BC. Tap anywhere inside the province.</p>`;
       $("cell-card").innerHTML = msg;
@@ -1586,9 +1631,10 @@ input[type="date"] {
   recompute();
   renderLegend();
   const kelowna = cellIndex.get(key(49.9, -119.5));
-  if (kelowna) { selectCell(kelowna); loadPlace(49.888, -119.496); }
+  if (kelowna) { selectCell(kelowna); loadPlace(49.888, -119.496); markCity([...cityButtons].find(b => b.textContent === "Kelowna")); }
   route();
-  loadWeather(TODAY);})();
+  loadWeather(TODAY);
+})();
 </script>
 </body>
 </html>
